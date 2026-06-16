@@ -32,7 +32,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Petición inválida." }, { status: 400 });
   }
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
   const prompt = `Eres un asistente de un bar/restaurante. Mira la imagen e identifica el PRODUCTO principal (bebida, comida o suministro).
 Responde con un objeto JSON con estas claves exactas:
 - "name": nombre corto y comercial del producto en español (máx 40 caracteres).
@@ -40,33 +39,52 @@ Responde con un objeto JSON con estas claves exactas:
 - "emoji": un único emoji representativo del producto.
 Si no reconoces el producto, usa name "Producto sin identificar", unit "ud", emoji "📦".`;
 
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+  const requestBody = JSON.stringify({
+    contents: [
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: prompt },
-                { inline_data: { mime_type: mimeType, data: imageBase64 } },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.2,
-            responseMimeType: "application/json",
-          },
-        }),
-      }
-    );
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: mimeType, data: imageBase64 } },
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: "application/json",
+    },
+  });
 
-    if (!res.ok) {
-      const detail = await res.text();
+  // Prueba el modelo configurado y, si no existe (404), cae a otros válidos.
+  const candidates = Array.from(
+    new Set([
+      process.env.GEMINI_MODEL || "gemini-2.0-flash",
+      "gemini-2.0-flash",
+      "gemini-2.5-flash",
+      "gemini-1.5-flash",
+    ])
+  );
+
+  try {
+    let res: Response | null = null;
+    let detail = "";
+    for (const model of candidates) {
+      res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: requestBody,
+        }
+      );
+      if (res.ok) break;
+      detail = await res.text();
+      if (res.status !== 404) break; // solo seguimos probando si el modelo no existe
+    }
+
+    if (!res || !res.ok) {
+      const status = res?.status ?? 500;
       return NextResponse.json(
-        { error: "Gemini rechazó la petición.", detail: detail.slice(0, 300) },
+        { error: `Gemini rechazó la petición (${status}). ${detail.slice(0, 250)}` },
         { status: 502 }
       );
     }

@@ -58,7 +58,10 @@ export function ScannerView() {
       setPhase("ready");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error inesperado");
-      setPhase(photo ? "ready" : "idle");
+      // Aun con fallo de IA, mostramos el formulario para añadir a mano.
+      setForm({ name: "", unit: "ud", supplierId: "" });
+      setAiEmoji("📦");
+      setPhase("ready");
     }
   };
 
