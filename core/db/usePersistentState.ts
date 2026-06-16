@@ -1,18 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getEntry, setEntry } from "./store";
+import { getEntry, setEntry, subscribeEntry } from "./store";
 
-/** Cada cuánto sondea el servidor para mantenerse actualizado (ms). */
-const POLL_MS = 5000;
+/** Sondeo de respaldo (ms). Realtime ya empuja los cambios al instante. */
+const POLL_MS = 20000;
 
 /**
- * Estado persistido y sincronizado con el servidor.
+ * Estado persistido y sincronizado con Supabase.
  *
- * - Carga inicial desde el servidor (con respaldo en caché offline).
- * - Sincronización automática: sondeo periódico + al recuperar el foco +
- *   al volver la conexión. Aplica siempre la versión más reciente.
- * - `mutate` actualiza el estado local y persiste en el servidor al instante.
+ * - Carga inicial desde la nube. Si falla, no se permite escribir para no
+ *   sobrescribir datos existentes.
+ * - Sincronización automática: tiempo real (Realtime) + sondeo de respaldo +
+ *   al recuperar el foco/conexión. Aplica siempre la versión más reciente.
+ * - `mutate` actualiza el estado local y persiste en la nube al instante.
  *
  * @param normalize Da forma al valor leído (rellena campos, mezcla defaults).
  */
@@ -26,6 +27,7 @@ export function usePersistentState<T>(
 
   const stateRef = useRef<T>(initial);
   const tsRef = useRef<number>(0);
+  const loadedRef = useRef(false);
   const normalizeRef = useRef(normalize);
   normalizeRef.current = normalize;
 
@@ -36,9 +38,11 @@ export function usePersistentState<T>(
     setState(next);
   }, []);
 
-  /** Mutación local: actualiza y persiste en el servidor. */
+  /** Mutación local: actualiza y persiste en Supabase. */
   const mutate = useCallback(
     (updater: T | ((prev: T) => T)) => {
+      // Evita sobrescribir la nube si aún no se cargó correctamente.
+      if (!loadedRef.current) return;
       const next =
         typeof updater === "function"
           ? (updater as (prev: T) => T)(stateRef.current)
@@ -47,7 +51,7 @@ export function usePersistentState<T>(
       setState(next);
       setEntry(key, next)
         .then((ts) => {
-          if (ts !== undefined) tsRef.current = ts;
+          tsRef.current = ts;
         })
         .catch(() => {});
     },
@@ -61,12 +65,13 @@ export function usePersistentState<T>(
       try {
         const { value, updatedAt } = await getEntry<T>(key);
         if (!active) return;
-        // Aplica si es la carga inicial o si el servidor tiene algo más nuevo.
+        loadedRef.current = true; // carga correcta: ya se puede escribir
+        // Aplica si es la carga inicial o si la nube tiene algo más nuevo.
         if (initialLoad || updatedAt > tsRef.current) {
           applyValue(value, updatedAt);
         }
       } catch {
-        /* sin conexión: se conserva el estado actual */
+        /* fallo de red: se conserva el estado y no se permite escribir */
       } finally {
         if (active && initialLoad) setReady(true);
       }
@@ -79,9 +84,16 @@ export function usePersistentState<T>(
     window.addEventListener("online", onWake);
     document.addEventListener("visibilitychange", onWake);
 
+    // Tiempo real: aplica los cambios de otros dispositivos al instante.
+    const unsubscribe = subscribeEntry<T>(key, ({ value, updatedAt }) => {
+      if (!active) return;
+      if (updatedAt > tsRef.current) applyValue(value, updatedAt);
+    });
+
     return () => {
       active = false;
       clearInterval(id);
+      unsubscribe();
       window.removeEventListener("focus", onWake);
       window.removeEventListener("online", onWake);
       document.removeEventListener("visibilitychange", onWake);

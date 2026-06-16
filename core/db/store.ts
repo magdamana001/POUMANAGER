@@ -1,23 +1,29 @@
 /**
- * Capa de datos del cliente (fuente de verdad: el servidor).
+ * Capa de datos del cliente. Único almacén: Supabase (Postgres en la nube),
+ * accesible desde cualquier dispositivo y lugar, con sincronización en
+ * tiempo real.
  *
- * - getEntry/setEntry hablan con la API /api/kv y manejan la versión (__ts).
- * - localStorage es CACHÉ offline: si el servidor no responde, se sirven los
- *   últimos datos conocidos.
- * - Cola de reintentos: las escrituras que fallan sin conexión se reintentan
- *   automáticamente al recuperar la red, para no perder cambios.
+ * - getEntry/setEntry leen y escriben en la tabla `kv` (key, value jsonb,
+ *   updated_at). updated_at hace de versión para aplicar siempre lo más nuevo.
+ * - subscribeEntry usa Supabase Realtime: los cambios llegan al instante.
+ * - Migración: la primera vez, si la nube está vacía pero existe un dato del
+ *   almacenamiento local anterior, se sube a Supabase y se descarta el local.
  */
 
-const api = (key: string) => `/api/kv/${encodeURIComponent(key)}`;
+import { KV_TABLE, supabase } from "./supabase";
 
 export interface Entry<T> {
   value: T | undefined;
   updatedAt: number;
 }
 
-// --- Caché local (espejo offline) ---
+function toMs(iso: string | null | undefined): number {
+  const t = iso ? new Date(iso).getTime() : 0;
+  return Number.isNaN(t) ? 0 : t;
+}
 
-function lsGet<T>(key: string): T | undefined {
+/** Lectura puntual del almacenamiento local antiguo, solo para migrar. */
+function legacyLocalValue<T>(key: string): T | undefined {
   try {
     if (typeof localStorage === "undefined") return undefined;
     const raw = localStorage.getItem(key);
@@ -27,105 +33,81 @@ function lsGet<T>(key: string): T | undefined {
   }
 }
 
-function lsSet<T>(key: string, value: T): void {
-  try {
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(key, JSON.stringify(value));
-    }
-  } catch {
-    /* cuota superada: el servidor sigue siendo la fuente principal */
-  }
-}
-
-// --- Cola de escrituras pendientes (offline) ---
-
-const pending = new Map<string, unknown>();
-
-async function putToServer<T>(key: string, value: T): Promise<number | undefined> {
-  const res = await fetch(api(key), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(value),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error("PUT falló");
-  const { updatedAt } = (await res.json()) as { updatedAt: number };
-  return updatedAt;
-}
-
-/** Reintenta enviar las escrituras que quedaron pendientes sin conexión. */
-export async function flushPending(): Promise<void> {
-  for (const [key, value] of Array.from(pending.entries())) {
-    try {
-      await putToServer(key, value);
-      pending.delete(key);
-    } catch {
-      /* sigue sin conexión: se reintentará más tarde */
-    }
-  }
-}
-
-if (typeof window !== "undefined") {
-  window.addEventListener("online", () => void flushPending());
-}
-
-// --- API pública ---
-
 /**
- * Lee una entrada del servidor con su versión. Si el servidor está vacío
- * pero hay copia local, la sube (primera sincronización). Sin conexión,
- * devuelve la caché local con versión 0 (para que el servidor la sustituya
- * en cuanto vuelva la red).
+ * Lee una entrada de Supabase con su versión. Si la nube está vacía pero hay
+ * un dato heredado en local, lo migra (lo sube y borra el local). Lanza el
+ * error si la consulta falla, para que el hook no sobrescriba la nube.
  */
 export async function getEntry<T>(key: string): Promise<Entry<T>> {
-  try {
-    const res = await fetch(api(key), { cache: "no-store" });
-    if (res.ok) {
-      const data = (await res.json()) as { value: T | null; updatedAt: number };
-      if (data.value !== null && data.value !== undefined) {
-        lsSet(key, data.value);
-        return { value: data.value, updatedAt: data.updatedAt };
-      }
-      const cached = lsGet<T>(key);
-      if (cached !== undefined) {
-        const ts = await setEntry(key, cached);
-        return { value: cached, updatedAt: ts ?? 0 };
-      }
-      return { value: undefined, updatedAt: data.updatedAt };
-    }
-  } catch {
-    /* sin conexión */
+  if (!supabase) return { value: undefined, updatedAt: 0 };
+
+  const { data, error } = await supabase
+    .from(KV_TABLE)
+    .select("value, updated_at")
+    .eq("key", key)
+    .maybeSingle();
+  if (error) throw error;
+
+  if (data) {
+    return { value: data.value as T, updatedAt: toMs(data.updated_at) };
   }
-  return { value: lsGet<T>(key), updatedAt: 0 };
+
+  // Nube vacía: migrar dato heredado del almacenamiento anterior (una vez).
+  const legacy = legacyLocalValue<T>(key);
+  if (legacy !== undefined) {
+    const ts = await setEntry(key, legacy);
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignorar */
+    }
+    return { value: legacy, updatedAt: ts };
+  }
+
+  return { value: undefined, updatedAt: 0 };
+}
+
+/** Guarda (upsert) en Supabase y devuelve la nueva versión. */
+export async function setEntry<T>(key: string, value: T): Promise<number> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const updated_at = new Date().toISOString();
+  const { error } = await supabase
+    .from(KV_TABLE)
+    .upsert({ key, value, updated_at }, { onConflict: "key" });
+  if (error) throw error;
+  return toMs(updated_at);
+}
+
+/** Elimina la clave en Supabase. */
+export async function deleteEntry(key: string): Promise<void> {
+  if (!supabase) return;
+  await supabase.from(KV_TABLE).delete().eq("key", key);
 }
 
 /**
- * Guarda en la caché local (inmediato) y en el servidor. Devuelve la nueva
- * versión, o undefined si no hubo conexión (queda en la cola de reintentos).
+ * Suscripción en tiempo real a los cambios de una clave. Devuelve una
+ * función para cancelar la suscripción.
  */
-export async function setEntry<T>(key: string, value: T): Promise<number | undefined> {
-  lsSet(key, value);
-  try {
-    const updatedAt = await putToServer(key, value);
-    pending.delete(key);
-    return updatedAt;
-  } catch {
-    pending.set(key, value); // se reintentará al recuperar la red
-    return undefined;
-  }
-}
-
-/** Elimina la clave en local y en el servidor. */
-export async function deleteEntry(key: string): Promise<void> {
-  try {
-    if (typeof localStorage !== "undefined") localStorage.removeItem(key);
-  } catch {
-    /* ignorar */
-  }
-  pending.delete(key);
-  try {
-    await fetch(api(key), { method: "DELETE" });
-  } catch {
-    /* ignorar */
-  }
+export function subscribeEntry<T>(
+  key: string,
+  onChange: (entry: Entry<T>) => void
+): () => void {
+  if (!supabase) return () => {};
+  const client = supabase;
+  const channel = client
+    .channel(`kv:${key}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: KV_TABLE, filter: `key=eq.${key}` },
+      (payload) => {
+        const row = payload.new as { value: T; updated_at: string } | undefined;
+        if (row && "value" in row) {
+          onChange({ value: row.value, updatedAt: toMs(row.updated_at) });
+        }
+      }
+    )
+    .subscribe();
+  return () => {
+    void client.removeChannel(channel);
+  };
 }
