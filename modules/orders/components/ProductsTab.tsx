@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useOrders } from "../store";
+import { ProductIcon } from "./ProductIcon";
 
 const UNITS = ["ud", "caja", "kg", "L", "botella", "barril", "paquete"];
 
@@ -159,6 +160,7 @@ export function ProductsTab() {
                       </li>
                     ) : (
                       <li key={p.id} className="flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-sm">
+                        <ProductIcon icon={p.icon} />
                         <span className="min-w-0 flex-1 truncate">{p.name}</span>
                         <span className="shrink-0 rounded bg-neutral-200 px-1.5 py-0.5 text-xs text-neutral-600">
                           {p.unit}

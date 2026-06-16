@@ -17,6 +17,8 @@ export interface Product {
   name: string;
   /** Unidad de pedido: ud, caja, kg, botella… */
   unit: string;
+  /** Icono del catálogo: emoji o data URL de imagen (opcional). */
+  icon?: string;
 }
 
 export type OrderStatus = "borrador" | "enviado" | "recibido";

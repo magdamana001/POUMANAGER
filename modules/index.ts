@@ -2,6 +2,7 @@ import type { ModuleDefinition } from "@/core/modules/types";
 import { timeTrackingModule } from "./time-tracking";
 import { menusModule } from "./menus";
 import { ordersModule } from "./orders";
+import { scannerModule } from "./scanner";
 
 /**
  * ÚNICA lista a editar para enchufar un módulo nuevo.
@@ -17,4 +18,5 @@ export const modules: ModuleDefinition[] = [
   timeTrackingModule,
   menusModule,
   ordersModule,
+  scannerModule,
 ];
