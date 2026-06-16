@@ -3,13 +3,8 @@
 import { useRef, useState } from "react";
 import { useOrders } from "@/modules/orders/store";
 import { ProductIcon } from "@/modules/orders/components/ProductIcon";
-import {
-  fileToDataUrl,
-  identifyProduct,
-  makeSquareIcon,
-  prepareForUpload,
-  type Identification,
-} from "./identify";
+import { fileToDataUrl, makeSquareIcon, prepareForUpload } from "@/core/ai/image";
+import { identifyProduct, type Identification } from "@/core/ai/client";
 
 const UNITS = ["ud", "caja", "kg", "L", "botella", "barril", "paquete"];
 
