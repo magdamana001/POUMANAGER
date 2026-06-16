@@ -4,15 +4,18 @@ import { useMemo, useState } from "react";
 import { useTimeTracking } from "../store";
 import { formatHours, sessionHours, todayISO } from "../utils";
 
+const EMPTY_FORM = {
+  employeeId: "",
+  date: todayISO(),
+  start: "09:00",
+  end: "17:00",
+  note: "",
+};
+
 export function SessionsTab() {
-  const { employees, sessions, addSession, removeSession } = useTimeTracking();
-  const [form, setForm] = useState({
-    employeeId: "",
-    date: todayISO(),
-    start: "09:00",
-    end: "17:00",
-    note: "",
-  });
+  const { employees, sessions, addSession, updateSession, removeSession } = useTimeTracking();
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [filterEmployee, setFilterEmployee] = useState("");
 
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
@@ -20,8 +23,33 @@ export function SessionsTab() {
   const submit = () => {
     const employeeId = form.employeeId || employees[0]?.id;
     if (!employeeId) return;
-    addSession({ ...form, employeeId });
-    setForm((f) => ({ ...f, note: "" }));
+    if (editingId) {
+      updateSession(editingId, { ...form, employeeId });
+      setEditingId(null);
+      setForm({ ...EMPTY_FORM });
+    } else {
+      addSession({ ...form, employeeId });
+      setForm((f) => ({ ...f, note: "" }));
+    }
+  };
+
+  const startEdit = (id: string) => {
+    const s = sessions.find((x) => x.id === id);
+    if (!s) return;
+    setEditingId(id);
+    setForm({
+      employeeId: s.employeeId,
+      date: s.date,
+      start: s.start,
+      end: s.end,
+      note: s.note ?? "",
+    });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setForm({ ...EMPTY_FORM });
   };
 
   const visible = useMemo(
@@ -48,8 +76,14 @@ export function SessionsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 font-semibold">Registrar jornada</h2>
+      <div
+        className={`rounded-xl border bg-white p-5 shadow-sm ${
+          editingId ? "border-brand" : "border-neutral-200"
+        }`}
+      >
+        <h2 className="mb-4 font-semibold">
+          {editingId ? "Editar jornada" : "Registrar jornada"}
+        </h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <label className="mb-1 block text-sm font-medium">Empleado</label>
@@ -92,8 +126,18 @@ export function SessionsTab() {
             onClick={submit}
             className="rounded-lg bg-brand px-5 py-2 font-medium text-white hover:opacity-90"
           >
-            Registrar ({formatHours(sessionHours({ ...form, id: "", employeeId: "" }))})
+            {editingId
+              ? `Guardar cambios (${formatHours(sessionHours({ ...form, id: "", employeeId: "" }))})`
+              : `Registrar (${formatHours(sessionHours({ ...form, id: "", employeeId: "" }))})`}
           </button>
+          {editingId && (
+            <button
+              onClick={cancelEdit}
+              className="rounded-lg border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100"
+            >
+              Cancelar
+            </button>
+          )}
         </div>
       </div>
 
@@ -118,7 +162,12 @@ export function SessionsTab() {
         ) : (
           <ul className="divide-y divide-neutral-100">
             {visible.map((s) => (
-              <li key={s.id} className="flex items-center gap-3 py-2 text-sm">
+              <li
+                key={s.id}
+                className={`flex items-center gap-3 py-2 text-sm ${
+                  editingId === s.id ? "rounded-lg bg-brand-soft px-2" : ""
+                }`}
+              >
                 <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: empColor(s.employeeId) }} />
                 <span className="w-28 shrink-0 font-medium">{empName(s.employeeId)}</span>
                 <span className="w-24 shrink-0 text-neutral-500">{s.date}</span>
@@ -127,6 +176,12 @@ export function SessionsTab() {
                 </span>
                 <span className="w-16 shrink-0 font-medium">{formatHours(sessionHours(s))}</span>
                 <span className="min-w-0 flex-1 truncate text-neutral-400">{s.note}</span>
+                <button
+                  onClick={() => startEdit(s.id)}
+                  className="shrink-0 rounded px-2 py-1 text-neutral-600 hover:bg-neutral-100"
+                >
+                  Editar
+                </button>
                 <button
                   onClick={() => removeSession(s.id)}
                   className="shrink-0 rounded px-2 py-1 text-red-500 hover:bg-red-50"

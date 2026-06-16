@@ -8,14 +8,35 @@ const UNITS = ["ud", "caja", "kg", "L", "botella", "barril", "paquete"];
 export function ProductsTab() {
   const { suppliers, products, addProduct, updateProduct, removeProduct } = useOrders();
   const [form, setForm] = useState({ name: "", supplierId: "", unit: "ud" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", supplierId: "", unit: "ud" });
 
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
+  const setEdit = (patch: Partial<typeof editForm>) =>
+    setEditForm((f) => ({ ...f, ...patch }));
 
   const submit = () => {
     const supplierId = form.supplierId || suppliers[0]?.id;
     if (!form.name.trim() || !supplierId) return;
     addProduct({ name: form.name.trim(), supplierId, unit: form.unit });
     setForm((f) => ({ ...f, name: "" }));
+  };
+
+  const startEdit = (id: string) => {
+    const p = products.find((x) => x.id === id);
+    if (!p) return;
+    setEditingId(id);
+    setEditForm({ name: p.name, supplierId: p.supplierId, unit: p.unit });
+  };
+
+  const saveEdit = () => {
+    if (!editingId || !editForm.name.trim()) return;
+    updateProduct(editingId, {
+      name: editForm.name.trim(),
+      supplierId: editForm.supplierId,
+      unit: editForm.unit,
+    });
+    setEditingId(null);
   };
 
   const input =
@@ -85,25 +106,78 @@ export function ProductsTab() {
                 <p className="text-sm text-neutral-400">Sin productos.</p>
               ) : (
                 <ul className="grid gap-2 sm:grid-cols-2">
-                  {items.map((p) => (
-                    <li key={p.id} className="flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-sm">
-                      <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                      <select
-                        className="rounded border border-neutral-200 px-1 py-0.5 text-xs"
-                        value={p.unit}
-                        onChange={(e) => updateProduct(p.id, { unit: e.target.value })}
+                  {items.map((p) =>
+                    editingId === p.id ? (
+                      <li
+                        key={p.id}
+                        className="flex flex-col gap-2 rounded-lg border border-brand bg-brand-soft p-3 text-sm sm:col-span-2"
                       >
-                        {UNITS.map((u) => (
-                          <option key={u} value={u}>
-                            {u}
-                          </option>
-                        ))}
-                      </select>
-                      <button onClick={() => removeProduct(p.id)} className="text-neutral-400 hover:text-red-500">
-                        ✕
-                      </button>
-                    </li>
-                  ))}
+                        <div className="grid gap-2 sm:grid-cols-4">
+                          <input
+                            className="sm:col-span-2 rounded border border-neutral-300 px-2 py-1.5 focus:border-brand focus:outline-none"
+                            value={editForm.name}
+                            onChange={(e) => setEdit({ name: e.target.value })}
+                            placeholder="Nombre"
+                          />
+                          <select
+                            className="rounded border border-neutral-300 px-2 py-1.5"
+                            value={editForm.supplierId}
+                            onChange={(e) => setEdit({ supplierId: e.target.value })}
+                          >
+                            {suppliers.map((sp) => (
+                              <option key={sp.id} value={sp.id}>
+                                {sp.name}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            className="rounded border border-neutral-300 px-2 py-1.5"
+                            value={editForm.unit}
+                            onChange={(e) => setEdit({ unit: e.target.value })}
+                          >
+                            {UNITS.map((u) => (
+                              <option key={u} value={u}>
+                                {u}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={saveEdit}
+                            className="rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                          >
+                            Guardar
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="rounded-lg border border-neutral-300 px-4 py-1.5 text-sm hover:bg-white"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </li>
+                    ) : (
+                      <li key={p.id} className="flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-sm">
+                        <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                        <span className="shrink-0 rounded bg-neutral-200 px-1.5 py-0.5 text-xs text-neutral-600">
+                          {p.unit}
+                        </span>
+                        <button
+                          onClick={() => startEdit(p.id)}
+                          className="shrink-0 rounded px-2 py-0.5 text-neutral-600 hover:bg-neutral-200"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => removeProduct(p.id)}
+                          className="shrink-0 text-neutral-400 hover:text-red-500"
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    )
+                  )}
                 </ul>
               )}
             </div>

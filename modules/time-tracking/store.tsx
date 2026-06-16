@@ -24,6 +24,7 @@ interface StoreValue {
   updateEmployee: (id: string, patch: Partial<Employee>) => void;
   removeEmployee: (id: string) => void;
   addSession: (s: Omit<WorkSession, "id">) => void;
+  updateSession: (id: string, patch: Partial<WorkSession>) => void;
   removeSession: (id: string) => void;
 }
 
@@ -75,6 +76,11 @@ export function TimeTrackingProvider({ children }: { children: ReactNode }) {
         })),
       addSession: (s) =>
         setData((d) => ({ ...d, sessions: [...d.sessions, { ...s, id: uid() }] })),
+      updateSession: (id, patch) =>
+        setData((d) => ({
+          ...d,
+          sessions: d.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+        })),
       removeSession: (id) =>
         setData((d) => ({ ...d, sessions: d.sessions.filter((s) => s.id !== id) })),
     }),
