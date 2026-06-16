@@ -1,0 +1,16 @@
+PLANTILLA DEL MENÚ DEL DÍA
+==========================
+
+Guarda aquí la imagen de la plantilla EN BLANCO (la del bar BARESPOU,
+sin platos) con este nombre EXACTO:
+
+    menu-dia.png
+
+Ruta final:  public/templates/menu-dia.png
+
+El módulo "Menús del día" la cargará como fondo y dibujará encima
+el día y los platos. La imagen debe estar vertical (formato cartel),
+idealmente a buena resolución (p. ej. 724x1024 px o mayor).
+
+Si quieres usar otra plantilla o cambiar la ruta/URL, puedes hacerlo
+en  Configuración → Menús del día → "Ruta de la plantilla".

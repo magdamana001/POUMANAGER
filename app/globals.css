@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-color: #e11d48;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+@media print {
+  aside,
+  header {
+    display: none !important;
+  }
+}

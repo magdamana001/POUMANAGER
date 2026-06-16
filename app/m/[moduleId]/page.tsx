@@ -1,0 +1,41 @@
+"use client";
+
+import { use } from "react";
+import Link from "next/link";
+import { useConfig } from "@/core/config/ConfigProvider";
+import { getModuleById } from "@/core/modules/registry";
+
+export default function ModulePage({
+  params,
+}: {
+  params: Promise<{ moduleId: string }>;
+}) {
+  const { moduleId } = use(params);
+  const { config, ready } = useConfig();
+  const mod = getModuleById(moduleId);
+
+  if (!mod) {
+    return (
+      <div className="rounded-xl border border-neutral-200 bg-white p-8 text-center">
+        <p className="text-lg font-semibold">Módulo no encontrado</p>
+        <Link href="/" className="mt-2 inline-block text-brand underline">
+          Volver al inicio
+        </Link>
+      </div>
+    );
+  }
+
+  if (ready && !config.modules[mod.id]?.enabled) {
+    return (
+      <div className="rounded-xl border border-neutral-200 bg-white p-8 text-center">
+        <p className="text-lg font-semibold">{mod.name} está desactivado</p>
+        <Link href="/admin" className="mt-2 inline-block text-brand underline">
+          Activarlo en Configuración
+        </Link>
+      </div>
+    );
+  }
+
+  const Page = mod.Page;
+  return <Page />;
+}
