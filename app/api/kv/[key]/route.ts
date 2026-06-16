@@ -9,16 +9,16 @@ type Params = { params: Promise<{ key: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
   const { key } = await params;
-  const value = await storeGet(key);
-  return NextResponse.json({ value: value ?? null });
+  const entry = await storeGet(key);
+  return NextResponse.json(entry ?? { value: null, updatedAt: 0 });
 }
 
 export async function PUT(req: Request, { params }: Params) {
   const { key } = await params;
   try {
     const value = await req.json();
-    await storeSet(key, value);
-    return NextResponse.json({ ok: true });
+    const updatedAt = await storeSet(key, value);
+    return NextResponse.json({ ok: true, updatedAt });
   } catch {
     return NextResponse.json({ ok: false, error: "JSON inválido" }, { status: 400 });
   }

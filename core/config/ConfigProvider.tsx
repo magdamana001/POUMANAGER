@@ -5,13 +5,12 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
 import type { AppConfig, GeneralConfig, ModuleConfigState } from "./types";
 import { DEFAULT_GENERAL } from "./types";
 import { getAllModules, getModuleDefaultSettings } from "@/core/modules/registry";
-import { dbGetMigrating, dbSet } from "@/core/db/store";
+import { usePersistentState } from "@/core/db/usePersistentState";
 
 const STORAGE_KEY = "espou-manager-config";
 
@@ -59,36 +58,25 @@ function mergeConfig(stored: Partial<AppConfig> | null): AppConfig {
 }
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<AppConfig>(() => buildDefaultConfig());
-  const [ready, setReady] = useState(false);
+  const { state: config, mutate, ready } = usePersistentState<AppConfig>(
+    STORAGE_KEY,
+    buildDefaultConfig(),
+    (stored) => mergeConfig(stored ?? null)
+  );
 
-  // Cargar de la base de datos offline una vez en cliente.
+  // Aplicar color de marca cuando cambia.
   useEffect(() => {
-    let active = true;
-    dbGetMigrating<Partial<AppConfig>>(STORAGE_KEY)
-      .then((stored) => active && setConfig(mergeConfig(stored ?? null)))
-      .catch(() => active && setConfig(buildDefaultConfig()))
-      .finally(() => active && setReady(true));
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // Persistir en cada cambio + aplicar color de marca.
-  useEffect(() => {
-    if (!ready) return;
-    dbSet(STORAGE_KEY, config).catch(() => {});
     document.documentElement.style.setProperty("--brand-color", config.general.brandColor);
-  }, [config, ready]);
+  }, [config.general.brandColor]);
 
   const value = useMemo<ConfigContextValue>(
     () => ({
       config,
       ready,
       updateGeneral: (patch) =>
-        setConfig((c) => ({ ...c, general: { ...c.general, ...patch } })),
+        mutate((c) => ({ ...c, general: { ...c.general, ...patch } })),
       setModuleEnabled: (moduleId, enabled) =>
-        setConfig((c) => ({
+        mutate((c) => ({
           ...c,
           modules: {
             ...c.modules,
@@ -96,7 +84,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
           },
         })),
       updateModuleSettings: (moduleId, patch) =>
-        setConfig((c) => ({
+        mutate((c) => ({
           ...c,
           modules: {
             ...c.modules,
@@ -106,9 +94,9 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
             },
           },
         })),
-      resetAll: () => setConfig(buildDefaultConfig()),
+      resetAll: () => mutate(buildDefaultConfig()),
     }),
-    [config, ready]
+    [config, ready, mutate]
   );
 
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;

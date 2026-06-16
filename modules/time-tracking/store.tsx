@@ -3,18 +3,23 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
 import type { Employee, TimeTrackingData, WorkSession } from "./types";
 import { uid } from "./utils";
-import { dbGetMigrating, dbSet } from "@/core/db/store";
+import { usePersistentState } from "@/core/db/usePersistentState";
 
 const STORAGE_KEY = "espou-tt-data";
 
 const EMPTY: TimeTrackingData = { employees: [], sessions: [] };
+
+function normalize(stored: TimeTrackingData | undefined): TimeTrackingData {
+  return {
+    employees: stored?.employees ?? [],
+    sessions: stored?.sessions ?? [],
+  };
+}
 
 interface StoreValue {
   ready: boolean;
@@ -31,31 +36,11 @@ interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 export function TimeTrackingProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<TimeTrackingData>(EMPTY);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    dbGetMigrating<TimeTrackingData>(STORAGE_KEY)
-      .then((stored) => {
-        if (active && stored) {
-          setData({
-            employees: stored.employees ?? [],
-            sessions: stored.sessions ?? [],
-          });
-        }
-      })
-      .catch(() => {})
-      .finally(() => active && setReady(true));
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!ready) return;
-    dbSet(STORAGE_KEY, data).catch(() => {});
-  }, [data, ready]);
+  const { state: data, mutate, ready } = usePersistentState<TimeTrackingData>(
+    STORAGE_KEY,
+    EMPTY,
+    normalize
+  );
 
   const value = useMemo<StoreValue>(
     () => ({
@@ -63,28 +48,28 @@ export function TimeTrackingProvider({ children }: { children: ReactNode }) {
       employees: data.employees,
       sessions: data.sessions,
       addEmployee: (e) =>
-        setData((d) => ({ ...d, employees: [...d.employees, { ...e, id: uid() }] })),
+        mutate((d) => ({ ...d, employees: [...d.employees, { ...e, id: uid() }] })),
       updateEmployee: (id, patch) =>
-        setData((d) => ({
+        mutate((d) => ({
           ...d,
           employees: d.employees.map((x) => (x.id === id ? { ...x, ...patch } : x)),
         })),
       removeEmployee: (id) =>
-        setData((d) => ({
+        mutate((d) => ({
           employees: d.employees.filter((x) => x.id !== id),
           sessions: d.sessions.filter((s) => s.employeeId !== id),
         })),
       addSession: (s) =>
-        setData((d) => ({ ...d, sessions: [...d.sessions, { ...s, id: uid() }] })),
+        mutate((d) => ({ ...d, sessions: [...d.sessions, { ...s, id: uid() }] })),
       updateSession: (id, patch) =>
-        setData((d) => ({
+        mutate((d) => ({
           ...d,
           sessions: d.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)),
         })),
       removeSession: (id) =>
-        setData((d) => ({ ...d, sessions: d.sessions.filter((s) => s.id !== id) })),
+        mutate((d) => ({ ...d, sessions: d.sessions.filter((s) => s.id !== id) })),
     }),
-    [data, ready]
+    [data, ready, mutate]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

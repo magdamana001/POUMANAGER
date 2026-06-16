@@ -3,17 +3,23 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
 import type { Order, OrdersData, Product, Supplier } from "./types";
 import { uid } from "./utils";
-import { dbGetMigrating, dbSet } from "@/core/db/store";
+import { usePersistentState } from "@/core/db/usePersistentState";
 
 const STORAGE_KEY = "espou-orders-data";
 const EMPTY: OrdersData = { suppliers: [], products: [], orders: [] };
+
+function normalize(stored: OrdersData | undefined): OrdersData {
+  return {
+    suppliers: stored?.suppliers ?? [],
+    products: stored?.products ?? [],
+    orders: stored?.orders ?? [],
+  };
+}
 
 interface StoreValue {
   ready: boolean;
@@ -33,32 +39,11 @@ interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 export function OrdersProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<OrdersData>(EMPTY);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    dbGetMigrating<OrdersData>(STORAGE_KEY)
-      .then((p) => {
-        if (active && p) {
-          setData({
-            suppliers: p.suppliers ?? [],
-            products: p.products ?? [],
-            orders: p.orders ?? [],
-          });
-        }
-      })
-      .catch(() => {})
-      .finally(() => active && setReady(true));
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!ready) return;
-    dbSet(STORAGE_KEY, data).catch(() => {});
-  }, [data, ready]);
+  const { state: data, mutate, ready } = usePersistentState<OrdersData>(
+    STORAGE_KEY,
+    EMPTY,
+    normalize
+  );
 
   const value = useMemo<StoreValue>(
     () => ({
@@ -67,27 +52,27 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       products: data.products,
       orders: data.orders,
       addSupplier: (s) =>
-        setData((d) => ({ ...d, suppliers: [...d.suppliers, { ...s, id: uid() }] })),
+        mutate((d) => ({ ...d, suppliers: [...d.suppliers, { ...s, id: uid() }] })),
       updateSupplier: (id, patch) =>
-        setData((d) => ({
+        mutate((d) => ({
           ...d,
           suppliers: d.suppliers.map((x) => (x.id === id ? { ...x, ...patch } : x)),
         })),
       removeSupplier: (id) =>
-        setData((d) => ({
+        mutate((d) => ({
           suppliers: d.suppliers.filter((x) => x.id !== id),
           products: d.products.filter((p) => p.supplierId !== id),
           orders: d.orders.filter((o) => o.supplierId !== id),
         })),
       addProduct: (p) =>
-        setData((d) => ({ ...d, products: [...d.products, { ...p, id: uid() }] })),
+        mutate((d) => ({ ...d, products: [...d.products, { ...p, id: uid() }] })),
       updateProduct: (id, patch) =>
-        setData((d) => ({
+        mutate((d) => ({
           ...d,
           products: d.products.map((x) => (x.id === id ? { ...x, ...patch } : x)),
         })),
       removeProduct: (id) =>
-        setData((d) => ({
+        mutate((d) => ({
           ...d,
           products: d.products.filter((x) => x.id !== id),
           orders: d.orders.map((o) => ({
@@ -96,7 +81,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           })),
         })),
       saveOrder: (o) =>
-        setData((d) => {
+        mutate((d) => {
           const exists = d.orders.some((x) => x.id === o.id);
           return {
             ...d,
@@ -106,9 +91,9 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           };
         }),
       removeOrder: (id) =>
-        setData((d) => ({ ...d, orders: d.orders.filter((o) => o.id !== id) })),
+        mutate((d) => ({ ...d, orders: d.orders.filter((o) => o.id !== id) })),
     }),
-    [data, ready]
+    [data, ready, mutate]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
