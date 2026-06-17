@@ -24,21 +24,21 @@ function OrdersPage() {
     <OrdersProvider>
       <div className="space-y-6">
         <header>
-          <h1 className="text-2xl font-bold">Pedidos a proveedores</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Pedidos a proveedores</h1>
           <p className="text-neutral-500">
-            Agenda de visitas, catálogo por proveedor, pedidos e impresión.
+            Agenda, catálogo con stock, pedidos con coste, envío y recepción.
           </p>
         </header>
 
-        <div className="flex flex-wrap gap-2 border-b border-neutral-200">
+        <div className="inline-flex flex-wrap gap-1 rounded-2xl bg-neutral-100 p-1">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
                 tab === t.id
-                  ? "border-brand text-brand"
-                  : "border-transparent text-neutral-500 hover:text-neutral-800"
+                  ? "bg-white text-brand shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-800"
               }`}
             >
               <span>{t.icon}</span>

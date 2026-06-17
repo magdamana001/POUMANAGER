@@ -1,4 +1,4 @@
-import type { Employee, WeeklyResult, WorkSession } from "./types";
+import type { DayDetail, Employee, WeeklyResult, WorkSession } from "./types";
 
 export const DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
@@ -7,14 +7,55 @@ export function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
-/** Horas trabajadas en una sesión (soporta turnos que cruzan medianoche). */
-export function sessionHours(session: WorkSession): number {
-  const [sh, sm] = session.start.split(":").map(Number);
-  const [eh, em] = session.end.split(":").map(Number);
-  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return 0;
-  let minutes = eh * 60 + em - (sh * 60 + sm);
-  if (minutes < 0) minutes += 24 * 60; // cruza medianoche
+function hm(value: string): number | null {
+  const [h, m] = value.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+}
+
+/** Hora actual en formato HH:MM. */
+export function nowHM(): string {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/** ¿La jornada está en curso (sin hora de salida)? */
+export function isOpen(s: WorkSession): boolean {
+  return !s.end;
+}
+
+/** Minutos brutos de una sesión (soporta turnos que cruzan medianoche). */
+export function grossMinutes(s: WorkSession): number {
+  const start = hm(s.start);
+  const end = hm(s.end);
+  if (start === null || end === null) return 0;
+  let minutes = end - start;
+  if (minutes < 0) minutes += 24 * 60;
+  return minutes;
+}
+
+/**
+ * Horas netas de una sesión (resta pausa y aplica redondeo opcional).
+ * Las jornadas en curso devuelven 0 (no cuentan hasta cerrarse).
+ */
+export function sessionNetHours(s: WorkSession, roundingMinutes = 0): number {
+  if (isOpen(s)) return 0;
+  let minutes = grossMinutes(s) - (s.breakMinutes ?? 0);
+  if (minutes < 0) minutes = 0;
+  if (roundingMinutes > 0) {
+    minutes = Math.round(minutes / roundingMinutes) * roundingMinutes;
+  }
   return Math.round((minutes / 60) * 100) / 100;
+}
+
+/** Minutos transcurridos de una jornada en curso hasta ahora. */
+export function liveMinutes(s: WorkSession): number {
+  const start = hm(s.start);
+  if (start === null) return 0;
+  const now = new Date();
+  let minutes = now.getHours() * 60 + now.getMinutes() - start;
+  if (minutes < 0) minutes += 24 * 60;
+  return minutes;
 }
 
 /** Devuelve el lunes (YYYY-MM-DD) de la semana que contiene la fecha dada. */
@@ -56,9 +97,16 @@ export function weekLabel(weekStart: string): string {
 
 /** Formatea horas decimales como "8h 30m". */
 export function formatHours(hours: number): string {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
+  const total = Math.round(hours * 60);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0 && m === 0) return "0h";
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+/** Formatea minutos como "1h 05m". */
+export function formatMinutes(min: number): string {
+  return formatHours(min / 60);
 }
 
 /** Símbolo de la moneda configurada. */
@@ -70,33 +118,59 @@ export function formatMoney(amount: number, currency: string): string {
   return `${amount.toFixed(2)} ${currencySymbol(currency)}`;
 }
 
-/**
- * Calcula el resumen semanal de un empleado a partir de sus sesiones.
- */
+/** Calcula el resumen semanal de un empleado a partir de sus sesiones. */
 export function computeWeekly(
   employee: Employee,
   sessions: WorkSession[],
-  weekStart: string
+  weekStart: string,
+  roundingMinutes = 0
 ): WeeklyResult {
-  const perDay = [0, 0, 0, 0, 0, 0, 0];
+  // Agrupa las sesiones cerradas por día de la semana.
+  const byDay: WorkSession[][] = [[], [], [], [], [], [], []];
+  let sessionCount = 0;
   for (const s of sessions) {
     if (s.employeeId !== employee.id) continue;
     if (getWeekStart(s.date) !== weekStart) continue;
+    if (isOpen(s)) continue;
+    sessionCount++;
     const idx = (new Date(s.date + "T00:00:00").getDay() + 6) % 7;
-    perDay[idx] += sessionHours(s);
+    byDay[idx].push(s);
   }
+
+  const days: DayDetail[] = byDay.map((list, dayIndex) => {
+    const segments = list
+      .slice()
+      .sort((a, b) => (a.start < b.start ? -1 : 1))
+      .map((s) => ({
+        start: s.start,
+        end: s.end,
+        net: sessionNetHours(s, roundingMinutes),
+      }));
+    const total = Math.round(segments.reduce((a, x) => a + x.net, 0) * 100) / 100;
+    return {
+      dayIndex,
+      date: addDays(weekStart, dayIndex),
+      segments,
+      total,
+      isSplit: segments.length > 1, // detección automática de jornada partida
+    };
+  });
+
+  const perDay = days.map((d) => d.total);
   const totalHours = Math.round(perDay.reduce((a, b) => a + b, 0) * 100) / 100;
   const normalHours = Math.min(totalHours, employee.contractHours);
-  const extraHours = Math.max(0, totalHours - employee.contractHours);
+  const extraHours = Math.round(Math.max(0, totalHours - employee.contractHours) * 100) / 100;
   const extraPay = extraHours * employee.extraHourPrice;
   return {
     employee,
     weekStart,
+    days,
     perDay,
     totalHours,
     normalHours,
     extraHours,
     extraPay,
     totalPay: extraPay,
+    sessionCount,
   };
 }

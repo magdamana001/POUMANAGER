@@ -3,12 +3,14 @@
 import { useState } from "react";
 import type { ModuleDefinition } from "@/core/modules/types";
 import { TimeTrackingProvider } from "./store";
+import { LiveTab } from "./components/LiveTab";
 import { EmployeesTab } from "./components/EmployeesTab";
 import { SessionsTab } from "./components/SessionsTab";
 import { WeeklySummaryTab } from "./components/WeeklySummaryTab";
 
 const TABS = [
-  { id: "summary", label: "Resumen semanal", icon: "📊" },
+  { id: "live", label: "Hoy", icon: "🟢" },
+  { id: "summary", label: "Resumen", icon: "📊" },
   { id: "sessions", label: "Jornadas", icon: "🗓️" },
   { id: "employees", label: "Empleados", icon: "👥" },
 ] as const;
@@ -16,7 +18,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 function TimeTrackingPage() {
-  const [tab, setTab] = useState<TabId>("summary");
+  const [tab, setTab] = useState<TabId>("live");
 
   return (
     <TimeTrackingProvider>
@@ -24,7 +26,7 @@ function TimeTrackingPage() {
         <header>
           <h1 className="text-2xl font-bold">Control horario</h1>
           <p className="text-neutral-500">
-            Jornada de empleados, horas extra y resumen semanal descargable.
+            Fichaje en vivo, jornadas, horas extra y resumen del equipo.
           </p>
         </header>
 
@@ -45,6 +47,7 @@ function TimeTrackingPage() {
           ))}
         </div>
 
+        {tab === "live" && <LiveTab />}
         {tab === "summary" && <WeeklySummaryTab />}
         {tab === "sessions" && <SessionsTab />}
         {tab === "employees" && <EmployeesTab />}

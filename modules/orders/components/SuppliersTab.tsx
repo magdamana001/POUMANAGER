@@ -10,8 +10,10 @@ const COLORS = ["#e11d48", "#2563eb", "#16a34a", "#d97706", "#7c3aed", "#0891b2"
 const EMPTY = {
   name: "",
   phone: "",
+  email: "",
   visitDays: [] as number[],
   leadDays: 1,
+  notes: "",
   color: COLORS[0],
 };
 
@@ -42,8 +44,10 @@ export function SuppliersTab() {
     setForm({
       name: s.name,
       phone: s.phone,
+      email: s.email ?? "",
       visitDays: s.visitDays,
       leadDays: s.leadDays,
+      notes: s.notes ?? "",
       color: s.color,
     });
   };
@@ -67,6 +71,10 @@ export function SuppliersTab() {
             <div>
               <label className="mb-1 block text-sm font-medium">Teléfono</label>
               <input className={input} value={form.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="+34..." />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Email</label>
+              <input className={input} value={form.email} onChange={(e) => set({ email: e.target.value })} placeholder="pedidos@proveedor.com" />
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium">Días que vienen a tomar pedido</label>
@@ -96,6 +104,10 @@ export function SuppliersTab() {
                 value={form.leadDays}
                 onChange={(e) => set({ leadDays: Number(e.target.value) })}
               />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Notas</label>
+              <textarea className={input} rows={2} value={form.notes} onChange={(e) => set({ notes: e.target.value })} placeholder="Pedido mínimo, condiciones..." />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Color</label>

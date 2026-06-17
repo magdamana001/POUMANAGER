@@ -1,85 +1,244 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useConfig } from "@/core/config/ConfigProvider";
 import { useOrders } from "../store";
 import { ProductIcon } from "./ProductIcon";
+import { SupplierAvatar, Stepper, inputCls } from "./ui";
+import { formatMoney, isLowStock } from "../utils";
 import { fileToDataUrl, makeSquareIcon, prepareForUpload } from "@/core/ai/image";
 import { generateThumbnail } from "@/core/ai/client";
 
 const UNITS = ["ud", "caja", "kg", "L", "botella", "barril", "paquete"];
 
-interface EditForm {
+export function ProductsTab() {
+  const { suppliers, products, removeProduct, adjustStock } = useOrders();
+  const { config } = useConfig();
+  const currency = config.general.currency;
+
+  const [search, setSearch] = useState("");
+  const [supplierFilter, setSupplierFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [onlyLow, setOnlyLow] = useState(false);
+  const [panel, setPanel] = useState<{ editingId: string | null } | null>(null);
+
+  const categories = useMemo(
+    () => Array.from(new Set(products.map((p) => p.category).filter(Boolean))) as string[],
+    [products]
+  );
+  const lowCount = useMemo(() => products.filter(isLowStock).length, [products]);
+
+  const matches = (id: string) =>
+    products
+      .filter((p) => p.supplierId === id)
+      .filter((p) => !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.category ?? "").toLowerCase().includes(search.toLowerCase()))
+      .filter((p) => !categoryFilter || p.category === categoryFilter)
+      .filter((p) => !onlyLow || isLowStock(p));
+
+  const visibleSuppliers = suppliers.filter((s) => !supplierFilter || s.id === supplierFilter);
+  const select = "rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none";
+
+  if (suppliers.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-10 text-center text-sm text-neutral-400">
+        Primero crea proveedores en la pestaña «Proveedores».
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Toolbar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <button
+          onClick={() => setPanel({ editingId: null })}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-5 py-2.5 font-medium text-white shadow-sm transition hover:opacity-90 active:scale-[0.98]"
+        >
+          <span className="text-lg leading-none">＋</span> Nuevo producto
+        </button>
+        <div className="relative flex-1 sm:max-w-xs">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">🔍</span>
+          <input
+            className="w-full rounded-xl border border-neutral-300 bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:border-brand focus:outline-none"
+            placeholder="Buscar producto…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select className={select} value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)}>
+          <option value="">Todos los proveedores</option>
+          {suppliers.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+        {categories.length > 0 && (
+          <select className={select} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <option value="">Todas las categorías</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        )}
+        <button
+          onClick={() => setOnlyLow((v) => !v)}
+          className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+            onlyLow ? "border-red-300 bg-red-50 text-red-700" : "border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-100"
+          }`}
+        >
+          Bajo mínimo
+          {lowCount > 0 && <span className="rounded-full bg-red-100 px-1.5 text-xs font-semibold text-red-700">{lowCount}</span>}
+        </button>
+      </div>
+
+      {/* Panel de alta / edición */}
+      {panel && (
+        <ProductForm editingId={panel.editingId} onClose={() => setPanel(null)} />
+      )}
+
+      {/* Catálogo por proveedor */}
+      <div className="space-y-5">
+        {visibleSuppliers.map((s) => {
+          const items = matches(s.id);
+          if (items.length === 0 && (search || onlyLow || categoryFilter)) return null;
+          const stockValue = items.reduce((a, p) => a + (p.stock ?? 0) * (p.price ?? 0), 0);
+          return (
+            <section key={s.id}>
+              <div className="mb-3 flex items-center gap-3">
+                <SupplierAvatar name={s.name} color={s.color} size={32} />
+                <h3 className="font-semibold">{s.name}</h3>
+                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">{items.length} productos</span>
+                {stockValue > 0 && (
+                  <span className="ml-auto text-xs text-neutral-400">Valor stock: {formatMoney(stockValue, currency)}</span>
+                )}
+              </div>
+              {items.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-sm text-neutral-400">
+                  Sin productos para este proveedor.
+                </p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {items.map((p) => (
+                    <article key={p.id} className={`flex flex-col rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md ${isLowStock(p) ? "border-red-200" : "border-neutral-200"}`}>
+                      <div className="flex items-start gap-3">
+                        <ProductIcon icon={p.icon} size={48} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-semibold leading-tight">{p.name}</p>
+                          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
+                            {p.category && <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-500">{p.category}</span>}
+                            <span>{p.unit}</span>
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-right text-sm font-bold">
+                          {p.price ? formatMoney(p.price, currency) : <span className="text-neutral-300">sin precio</span>}
+                        </p>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between rounded-xl bg-neutral-50 px-3 py-2">
+                        <div className="text-xs">
+                          <span className="text-neutral-400">Stock </span>
+                          <span className={`font-semibold ${isLowStock(p) ? "text-red-600" : "text-neutral-700"}`}>{p.stock ?? 0}</span>
+                          {(p.minStock ?? 0) > 0 && <span className="text-neutral-400"> · mín {p.minStock}</span>}
+                          {isLowStock(p) && <span className="ml-1 rounded bg-red-100 px-1.5 text-[10px] font-medium text-red-700">bajo</span>}
+                        </div>
+                        <Stepper value={p.stock ?? 0} onChange={(v) => adjustStock(p.id, v - (p.stock ?? 0))} />
+                      </div>
+
+                      <div className="mt-3 flex gap-2">
+                        <button onClick={() => setPanel({ editingId: p.id })} className="flex-1 rounded-xl border border-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-100">
+                          ✏️ Editar
+                        </button>
+                        <button onClick={() => confirm(`¿Eliminar ${p.name}?`) && removeProduct(p.id)} className="rounded-xl px-3 py-1.5 text-sm text-red-500 hover:bg-red-50">
+                          🗑
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+interface FormState {
   name: string;
   supplierId: string;
   unit: string;
+  category: string;
+  price: number;
+  stock: number;
+  minStock: number;
   icon?: string;
 }
 
-export function ProductsTab() {
-  const { suppliers, products, addProduct, updateProduct, removeProduct } = useOrders();
-  const [form, setForm] = useState({ name: "", supplierId: "", unit: "ud" });
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ name: "", supplierId: "", unit: "ud" });
+/** Panel unificado para crear o editar un producto, con miniatura IA. */
+function ProductForm({ editingId, onClose }: { editingId: string | null; onClose: () => void }) {
+  const { suppliers, products, addProduct, updateProduct } = useOrders();
+  const { config } = useConfig();
+  const currency = config.general.currency;
+  const editing = editingId ? products.find((p) => p.id === editingId) : undefined;
+
+  const [form, setForm] = useState<FormState>(() => ({
+    name: editing?.name ?? "",
+    supplierId: editing?.supplierId ?? suppliers[0]?.id ?? "",
+    unit: editing?.unit ?? "ud",
+    category: editing?.category ?? "",
+    price: editing?.price ?? 0,
+    stock: editing?.stock ?? 0,
+    minStock: editing?.minStock ?? 0,
+    icon: editing?.icon,
+  }));
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
-  const editFileRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
-  const setEdit = (patch: Partial<EditForm>) => setEditForm((f) => ({ ...f, ...patch }));
+  const set = (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch }));
 
-  const submit = () => {
-    const supplierId = form.supplierId || suppliers[0]?.id;
-    if (!form.name.trim() || !supplierId) return;
-    addProduct({ name: form.name.trim(), supplierId, unit: form.unit });
-    setForm((f) => ({ ...f, name: "" }));
+  const save = () => {
+    if (!form.name.trim() || !form.supplierId) return;
+    const payload = {
+      name: form.name.trim(),
+      supplierId: form.supplierId,
+      unit: form.unit,
+      category: form.category.trim() || undefined,
+      price: form.price || 0,
+      stock: form.stock || 0,
+      minStock: form.minStock || 0,
+      icon: form.icon,
+    };
+    if (editingId) updateProduct(editingId, payload);
+    else addProduct(payload);
+    onClose();
   };
 
-  const startEdit = (id: string) => {
-    const p = products.find((x) => x.id === id);
-    if (!p) return;
-    setEditingId(id);
-    setGenError(null);
-    setEditForm({ name: p.name, supplierId: p.supplierId, unit: p.unit, icon: p.icon });
-  };
-
-  const saveEdit = () => {
-    if (!editingId || !editForm.name.trim()) return;
-    updateProduct(editingId, {
-      name: editForm.name.trim(),
-      supplierId: editForm.supplierId,
-      unit: editForm.unit,
-      icon: editForm.icon,
-    });
-    setEditingId(null);
-  };
-
-  // Sube una foto y la usa como icono (recortada cuadrada).
-  const onEditPhoto = async (file: File | undefined) => {
+  const onPhoto = async (file: File | undefined) => {
     if (!file) return;
     setGenError(null);
     try {
       const dataUrl = await fileToDataUrl(file);
-      setEdit({ icon: await makeSquareIcon(dataUrl, 128) });
+      set({ icon: await makeSquareIcon(dataUrl, 128) });
     } catch {
       setGenError("No se pudo cargar la imagen.");
     }
-    if (editFileRef.current) editFileRef.current.value = "";
+    if (fileRef.current) fileRef.current.value = "";
   };
 
-  // Reconvierte la imagen (o el nombre) en una miniatura profesional con IA.
-  const generateEditThumbnail = async () => {
+  const generate = async () => {
     setGenLoading(true);
     setGenError(null);
     try {
       let imageBase64: string | undefined;
       let mimeType: string | undefined;
-      if (editForm.icon && editForm.icon.startsWith("data:")) {
-        const prepared = await prepareForUpload(editForm.icon);
+      if (form.icon && form.icon.startsWith("data:")) {
+        const prepared = await prepareForUpload(form.icon);
         imageBase64 = prepared.base64;
         mimeType = prepared.mimeType;
       }
-      const generated = await generateThumbnail({ imageBase64, mimeType, name: editForm.name });
-      setEdit({ icon: await makeSquareIcon(generated, 128) });
+      const generated = await generateThumbnail({ imageBase64, mimeType, name: form.name });
+      set({ icon: await makeSquareIcon(generated, 128) });
     } catch (e) {
       setGenError(e instanceof Error ? e.message : "Error al generar la miniatura");
     } finally {
@@ -87,192 +246,74 @@ export function ProductsTab() {
     }
   };
 
-  const input =
-    "w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand focus:outline-none";
-
-  if (suppliers.length === 0) {
-    return (
-      <p className="text-sm text-neutral-400">
-        Primero crea proveedores en la pestaña «Proveedores».
-      </p>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 font-semibold">Nuevo producto</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="lg:col-span-2">
-            <label className="mb-1 block text-sm font-medium">Nombre</label>
-            <input
-              className={input}
-              value={form.name}
-              onChange={(e) => set({ name: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && submit()}
-              placeholder="Ej: Cerveza 33cl"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Proveedor</label>
-            <select className={input} value={form.supplierId || suppliers[0]?.id} onChange={(e) => set({ supplierId: e.target.value })}>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Unidad</label>
-            <select className={input} value={form.unit} onChange={(e) => set({ unit: e.target.value })}>
-              {UNITS.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <button onClick={submit} className="mt-4 rounded-lg bg-brand px-5 py-2 font-medium text-white hover:opacity-90">
-          Añadir producto
-        </button>
+    <div className="rounded-2xl border border-brand/40 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="font-semibold">{editingId ? "Editar producto" : "Nuevo producto"}</h2>
+        <button onClick={onClose} className="rounded-lg px-2 py-1 text-sm text-neutral-400 hover:bg-neutral-100">✕</button>
       </div>
 
-      {/* Agrupado por proveedor */}
-      <div className="space-y-4">
-        {suppliers.map((s) => {
-          const items = products.filter((p) => p.supplierId === s.id);
-          return (
-            <div key={s.id} className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-              <div className="mb-3 flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: s.color }} />
-                <h3 className="font-semibold">{s.name}</h3>
-                <span className="text-sm text-neutral-400">({items.length})</span>
-              </div>
-              {items.length === 0 ? (
-                <p className="text-sm text-neutral-400">Sin productos.</p>
-              ) : (
-                <ul className="grid gap-2 sm:grid-cols-2">
-                  {items.map((p) =>
-                    editingId === p.id ? (
-                      <li
-                        key={p.id}
-                        className="flex flex-col gap-2 rounded-lg border border-brand bg-brand-soft p-3 text-sm sm:col-span-2"
-                      >
-                        <div className="grid gap-2 sm:grid-cols-4">
-                          <input
-                            className="sm:col-span-2 rounded border border-neutral-300 px-2 py-1.5 focus:border-brand focus:outline-none"
-                            value={editForm.name}
-                            onChange={(e) => setEdit({ name: e.target.value })}
-                            placeholder="Nombre"
-                          />
-                          <select
-                            className="rounded border border-neutral-300 px-2 py-1.5"
-                            value={editForm.supplierId}
-                            onChange={(e) => setEdit({ supplierId: e.target.value })}
-                          >
-                            {suppliers.map((sp) => (
-                              <option key={sp.id} value={sp.id}>
-                                {sp.name}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            className="rounded border border-neutral-300 px-2 py-1.5"
-                            value={editForm.unit}
-                            onChange={(e) => setEdit({ unit: e.target.value })}
-                          >
-                            {UNITS.map((u) => (
-                              <option key={u} value={u}>
-                                {u}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+      <div className="grid gap-4 lg:grid-cols-[auto_1fr]">
+        {/* Imagen */}
+        <div className="flex flex-col items-center gap-2">
+          <ProductIcon icon={form.icon} size={96} />
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onPhoto(e.target.files?.[0])} />
+          <div className="flex gap-1.5">
+            <button type="button" onClick={() => fileRef.current?.click()} className="rounded-lg border border-neutral-300 px-2.5 py-1 text-xs hover:bg-neutral-100">📷 Foto</button>
+            <button type="button" onClick={generate} disabled={genLoading} className="rounded-lg bg-brand px-2.5 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50">
+              {genLoading ? "…" : "✨ IA"}
+            </button>
+          </div>
+          {form.icon && <button type="button" onClick={() => set({ icon: undefined })} className="text-xs text-neutral-400 hover:text-red-500">Quitar</button>}
+          {genError && <p className="max-w-[140px] text-center text-[11px] text-red-600">{genError}</p>}
+        </div>
 
-                        {/* Icono / miniatura con IA */}
-                        <div className="flex flex-wrap items-center gap-2 border-t border-white/60 pt-2">
-                          <ProductIcon icon={editForm.icon} size={44} />
-                          <input
-                            ref={editFileRef}
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            className="hidden"
-                            onChange={(e) => onEditPhoto(e.target.files?.[0])}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => editFileRef.current?.click()}
-                            className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs hover:bg-neutral-100"
-                          >
-                            📷 Foto
-                          </button>
-                          <button
-                            type="button"
-                            onClick={generateEditThumbnail}
-                            disabled={genLoading}
-                            className="rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
-                          >
-                            {genLoading ? "Generando…" : "✨ Miniatura con IA"}
-                          </button>
-                          {editForm.icon && (
-                            <button
-                              type="button"
-                              onClick={() => setEdit({ icon: undefined })}
-                              className="rounded-lg px-2 py-1.5 text-xs text-neutral-500 hover:bg-neutral-100"
-                            >
-                              Quitar
-                            </button>
-                          )}
-                        </div>
-                        {genError && (
-                          <p className="rounded bg-red-50 px-2 py-1 text-xs text-red-700">{genError}</p>
-                        )}
+        {/* Campos */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Nombre</label>
+            <input className={inputCls} value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="Ej: Cerveza 33cl" autoFocus />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Proveedor</label>
+            <select className={inputCls} value={form.supplierId} onChange={(e) => set({ supplierId: e.target.value })}>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Categoría</label>
+            <input className={inputCls} value={form.category} onChange={(e) => set({ category: e.target.value })} placeholder="Bebidas, limpieza…" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Unidad</label>
+            <select className={inputCls} value={form.unit} onChange={(e) => set({ unit: e.target.value })}>
+              {UNITS.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Precio ({currency})</label>
+            <input type="number" min={0} step="0.01" className={inputCls} value={form.price} onChange={(e) => set({ price: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Stock actual</label>
+            <input type="number" min={0} className={inputCls} value={form.stock} onChange={(e) => set({ stock: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Punto de pedido</label>
+            <input type="number" min={0} className={inputCls} value={form.minStock} onChange={(e) => set({ minStock: Number(e.target.value) })} />
+          </div>
+        </div>
+      </div>
 
-                        <div className="flex gap-2">
-                          <button
-                            onClick={saveEdit}
-                            className="rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90"
-                          >
-                            Guardar
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="rounded-lg border border-neutral-300 px-4 py-1.5 text-sm hover:bg-white"
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      </li>
-                    ) : (
-                      <li key={p.id} className="flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-sm">
-                        <ProductIcon icon={p.icon} />
-                        <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                        <span className="shrink-0 rounded bg-neutral-200 px-1.5 py-0.5 text-xs text-neutral-600">
-                          {p.unit}
-                        </span>
-                        <button
-                          onClick={() => startEdit(p.id)}
-                          className="shrink-0 rounded px-2 py-0.5 text-neutral-600 hover:bg-neutral-200"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => removeProduct(p.id)}
-                          className="shrink-0 text-neutral-400 hover:text-red-500"
-                        >
-                          ✕
-                        </button>
-                      </li>
-                    )
-                  )}
-                </ul>
-              )}
-            </div>
-          );
-        })}
+      <div className="mt-4 flex justify-end gap-2">
+        <button onClick={onClose} className="rounded-xl border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100">Cancelar</button>
+        <button onClick={save} className="rounded-xl bg-brand px-6 py-2 text-sm font-medium text-white shadow-sm transition hover:opacity-90 active:scale-[0.98]">
+          {editingId ? "Guardar cambios" : "Añadir producto"}
+        </button>
       </div>
     </div>
   );
