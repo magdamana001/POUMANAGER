@@ -28,9 +28,21 @@ export async function isPushSubscribed(): Promise<boolean> {
 
 /** Registra el SW, se suscribe a push y envía la suscripción al servidor. */
 export async function enablePush(): Promise<boolean> {
-  if (!pushSupported()) return false;
+  if (!pushSupported()) throw new Error("Este navegador no soporta notificaciones push.");
   const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!key) throw new Error("Falta NEXT_PUBLIC_VAPID_PUBLIC_KEY");
+  if (!key) throw new Error("Falta la clave VAPID pública. Configúrala y reinicia el servidor.");
+
+  let appKey: Uint8Array;
+  try {
+    appKey = urlBase64ToUint8Array(key);
+  } catch {
+    throw new Error("La clave VAPID pública no tiene un formato válido.");
+  }
+  if (appKey.length !== 65) {
+    throw new Error(
+      `Clave VAPID inválida (longitud ${appKey.length}, debería ser 65). Reinicia el servidor tras configurarla.`
+    );
+  }
 
   const reg = await navigator.serviceWorker.register("/sw.js");
   await navigator.serviceWorker.ready;
@@ -43,10 +55,16 @@ export async function enablePush(): Promise<boolean> {
     /* ignore */
   }
 
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(key),
-  });
+  let sub: PushSubscription;
+  try {
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "error";
+    throw new Error(
+      `El navegador no pudo suscribir (${msg}). Requiere HTTPS o localhost; en Brave activa "servicios de Google para mensajería push"; prueba en Chrome/Edge.`
+    );
+  }
+
   const res = await fetch("/api/push/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
