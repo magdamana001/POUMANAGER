@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useConfig } from "@/core/config/ConfigProvider";
 import { useOrders } from "../store";
+import { useStockControl } from "../hooks";
 import { ProductIcon } from "./ProductIcon";
 import { SupplierAvatar, Stepper, inputCls } from "./ui";
 import { formatMoney, isLowStock } from "../utils";
@@ -12,15 +13,18 @@ import { generateThumbnail } from "@/core/ai/client";
 const UNITS = ["ud", "caja", "kg", "L", "botella", "barril", "paquete"];
 
 export function ProductsTab() {
-  const { suppliers, products, removeProduct, adjustStock } = useOrders();
+  const { suppliers, products, removeProduct, removeProducts, adjustStock } = useOrders();
   const { config } = useConfig();
   const currency = config.general.currency;
+  const stockOn = useStockControl();
 
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [onlyLow, setOnlyLow] = useState(false);
   const [panel, setPanel] = useState<{ editingId: string | null } | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const categories = useMemo(
     () => Array.from(new Set(products.map((p) => p.category).filter(Boolean))) as string[],
@@ -33,9 +37,35 @@ export function ProductsTab() {
       .filter((p) => p.supplierId === id)
       .filter((p) => !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.category ?? "").toLowerCase().includes(search.toLowerCase()))
       .filter((p) => !categoryFilter || p.category === categoryFilter)
-      .filter((p) => !onlyLow || isLowStock(p));
+      .filter((p) => !stockOn || !onlyLow || isLowStock(p));
 
   const visibleSuppliers = suppliers.filter((s) => !supplierFilter || s.id === supplierFilter);
+  const allVisibleIds = useMemo(
+    () => visibleSuppliers.flatMap((s) => matches(s.id).map((p) => p.id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visibleSuppliers, products, search, categoryFilter, onlyLow, stockOn]
+  );
+
+  const toggleSel = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const exitSelect = () => {
+    setSelecting(false);
+    setSelected(new Set());
+  };
+
+  const bulkDelete = () => {
+    if (selected.size === 0) return;
+    if (confirm(`¿Eliminar ${selected.size} productos? Esta acción no se puede deshacer.`)) {
+      removeProducts(Array.from(selected));
+      exitSelect();
+    }
+  };
+
   const select = "rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none";
 
   if (suppliers.length === 0) {
@@ -47,7 +77,7 @@ export function ProductsTab() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-24">
       {/* Toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <button
@@ -79,21 +109,29 @@ export function ProductsTab() {
             ))}
           </select>
         )}
+        {stockOn && (
+          <button
+            onClick={() => setOnlyLow((v) => !v)}
+            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+              onlyLow ? "border-red-300 bg-red-50 text-red-700" : "border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-100"
+            }`}
+          >
+            Bajo mínimo
+            {lowCount > 0 && <span className="rounded-full bg-red-100 px-1.5 text-xs font-semibold text-red-700">{lowCount}</span>}
+          </button>
+        )}
         <button
-          onClick={() => setOnlyLow((v) => !v)}
-          className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
-            onlyLow ? "border-red-300 bg-red-50 text-red-700" : "border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-100"
+          onClick={() => (selecting ? exitSelect() : setSelecting(true))}
+          className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition sm:ml-auto ${
+            selecting ? "border-brand bg-brand-soft text-brand" : "border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-100"
           }`}
         >
-          Bajo mínimo
-          {lowCount > 0 && <span className="rounded-full bg-red-100 px-1.5 text-xs font-semibold text-red-700">{lowCount}</span>}
+          {selecting ? "Cancelar selección" : "☑ Seleccionar"}
         </button>
       </div>
 
       {/* Panel de alta / edición */}
-      {panel && (
-        <ProductForm editingId={panel.editingId} onClose={() => setPanel(null)} />
-      )}
+      {panel && <ProductForm editingId={panel.editingId} stockOn={stockOn} onClose={() => setPanel(null)} />}
 
       {/* Catálogo por proveedor */}
       <div className="space-y-5">
@@ -104,61 +142,90 @@ export function ProductsTab() {
           return (
             <section key={s.id}>
               <div className="mb-3 flex items-center gap-3">
-                <SupplierAvatar name={s.name} color={s.color} size={32} />
+                <SupplierAvatar name={s.name} color={s.color} logo={s.logo} size={32} />
                 <h3 className="font-semibold">{s.name}</h3>
                 <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">{items.length} productos</span>
-                {stockValue > 0 && (
+                {stockOn && stockValue > 0 && (
                   <span className="ml-auto text-xs text-neutral-400">Valor stock: {formatMoney(stockValue, currency)}</span>
                 )}
               </div>
               {items.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-sm text-neutral-400">
-                  Sin productos para este proveedor.
-                </p>
+                <p className="rounded-2xl border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-sm text-neutral-400">Sin productos para este proveedor.</p>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {items.map((p) => (
-                    <article key={p.id} className={`flex flex-col rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md ${isLowStock(p) ? "border-red-200" : "border-neutral-200"}`}>
-                      <div className="flex items-start gap-3">
-                        <ProductIcon icon={p.icon} size={48} />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-semibold leading-tight">{p.name}</p>
-                          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
-                            {p.category && <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-500">{p.category}</span>}
-                            <span>{p.unit}</span>
+                  {items.map((p) => {
+                    const sel = selected.has(p.id);
+                    return (
+                      <article
+                        key={p.id}
+                        onClick={() => selecting && toggleSel(p.id)}
+                        className={`flex flex-col rounded-2xl border bg-white p-4 shadow-sm transition ${
+                          selecting ? "cursor-pointer" : "hover:shadow-md"
+                        } ${sel ? "border-brand ring-2 ring-brand/30" : isLowStock(p) && stockOn ? "border-red-200" : "border-neutral-200"}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {selecting && (
+                            <input type="checkbox" readOnly checked={sel} className="mt-1 h-4 w-4 accent-brand" />
+                          )}
+                          <ProductIcon icon={p.icon} size={48} />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-semibold leading-tight">{p.name}</p>
+                            <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
+                              {p.category && <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-500">{p.category}</span>}
+                              <span>{p.unit}</span>
+                            </p>
+                          </div>
+                          <p className="shrink-0 text-right text-sm font-bold">
+                            {p.price ? formatMoney(p.price, currency) : <span className="text-neutral-300">sin precio</span>}
                           </p>
                         </div>
-                        <p className="shrink-0 text-right text-sm font-bold">
-                          {p.price ? formatMoney(p.price, currency) : <span className="text-neutral-300">sin precio</span>}
-                        </p>
-                      </div>
 
-                      <div className="mt-3 flex items-center justify-between rounded-xl bg-neutral-50 px-3 py-2">
-                        <div className="text-xs">
-                          <span className="text-neutral-400">Stock </span>
-                          <span className={`font-semibold ${isLowStock(p) ? "text-red-600" : "text-neutral-700"}`}>{p.stock ?? 0}</span>
-                          {(p.minStock ?? 0) > 0 && <span className="text-neutral-400"> · mín {p.minStock}</span>}
-                          {isLowStock(p) && <span className="ml-1 rounded bg-red-100 px-1.5 text-[10px] font-medium text-red-700">bajo</span>}
-                        </div>
-                        <Stepper value={p.stock ?? 0} onChange={(v) => adjustStock(p.id, v - (p.stock ?? 0))} />
-                      </div>
+                        {stockOn && (
+                          <div className="mt-3 flex items-center justify-between rounded-xl bg-neutral-50 px-3 py-2">
+                            <div className="text-xs">
+                              <span className="text-neutral-400">Stock </span>
+                              <span className={`font-semibold ${isLowStock(p) ? "text-red-600" : "text-neutral-700"}`}>{p.stock ?? 0}</span>
+                              {(p.minStock ?? 0) > 0 && <span className="text-neutral-400"> · mín {p.minStock}</span>}
+                              {isLowStock(p) && <span className="ml-1 rounded bg-red-100 px-1.5 text-[10px] font-medium text-red-700">bajo</span>}
+                            </div>
+                            {!selecting && <Stepper value={p.stock ?? 0} onChange={(v) => adjustStock(p.id, v - (p.stock ?? 0))} />}
+                          </div>
+                        )}
 
-                      <div className="mt-3 flex gap-2">
-                        <button onClick={() => setPanel({ editingId: p.id })} className="flex-1 rounded-xl border border-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-100">
-                          ✏️ Editar
-                        </button>
-                        <button onClick={() => confirm(`¿Eliminar ${p.name}?`) && removeProduct(p.id)} className="rounded-xl px-3 py-1.5 text-sm text-red-500 hover:bg-red-50">
-                          🗑
-                        </button>
-                      </div>
-                    </article>
-                  ))}
+                        {!selecting && (
+                          <div className="mt-3 flex gap-2">
+                            <button onClick={() => setPanel({ editingId: p.id })} className="flex-1 rounded-xl border border-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-100">✏️ Editar</button>
+                            <button onClick={() => confirm(`¿Eliminar ${p.name}?`) && removeProduct(p.id)} className="rounded-xl px-3 py-1.5 text-sm text-red-500 hover:bg-red-50">🗑</button>
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
                 </div>
               )}
             </section>
           );
         })}
       </div>
+
+      {/* Barra de selección masiva */}
+      {selecting && (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-200 bg-white/90 px-4 py-3 backdrop-blur md:px-8">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-2">
+            <span className="mr-auto text-sm text-neutral-600">{selected.size} seleccionados</span>
+            <button
+              onClick={() => setSelected((prev) => (prev.size === allVisibleIds.length ? new Set() : new Set(allVisibleIds)))}
+              className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium hover:bg-neutral-100"
+            >
+              {selected.size === allVisibleIds.length && allVisibleIds.length > 0 ? "Quitar todo" : "Seleccionar todo"}
+            </button>
+            <button onClick={exitSelect} className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium hover:bg-neutral-100">Cancelar</button>
+            <button onClick={bulkDelete} disabled={selected.size === 0} className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-red-700 disabled:opacity-40">
+              🗑 Eliminar ({selected.size})
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -175,7 +242,7 @@ interface FormState {
 }
 
 /** Panel unificado para crear o editar un producto, con miniatura IA. */
-function ProductForm({ editingId, onClose }: { editingId: string | null; onClose: () => void }) {
+function ProductForm({ editingId, stockOn, onClose }: { editingId: string | null; stockOn: boolean; onClose: () => void }) {
   const { suppliers, products, addProduct, updateProduct } = useOrders();
   const { config } = useConfig();
   const currency = config.general.currency;
@@ -254,21 +321,17 @@ function ProductForm({ editingId, onClose }: { editingId: string | null; onClose
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[auto_1fr]">
-        {/* Imagen */}
         <div className="flex flex-col items-center gap-2">
           <ProductIcon icon={form.icon} size={96} />
           <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onPhoto(e.target.files?.[0])} />
           <div className="flex gap-1.5">
             <button type="button" onClick={() => fileRef.current?.click()} className="rounded-lg border border-neutral-300 px-2.5 py-1 text-xs hover:bg-neutral-100">📷 Foto</button>
-            <button type="button" onClick={generate} disabled={genLoading} className="rounded-lg bg-brand px-2.5 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50">
-              {genLoading ? "…" : "✨ IA"}
-            </button>
+            <button type="button" onClick={generate} disabled={genLoading} className="rounded-lg bg-brand px-2.5 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50">{genLoading ? "…" : "✨ IA"}</button>
           </div>
           {form.icon && <button type="button" onClick={() => set({ icon: undefined })} className="text-xs text-neutral-400 hover:text-red-500">Quitar</button>}
           {genError && <p className="max-w-[140px] text-center text-[11px] text-red-600">{genError}</p>}
         </div>
 
-        {/* Campos */}
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="mb-1 block text-xs font-medium text-neutral-500">Nombre</label>
@@ -298,14 +361,18 @@ function ProductForm({ editingId, onClose }: { editingId: string | null; onClose
             <label className="mb-1 block text-xs font-medium text-neutral-500">Precio ({currency})</label>
             <input type="number" min={0} step="0.01" className={inputCls} value={form.price} onChange={(e) => set({ price: Number(e.target.value) })} />
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-500">Stock actual</label>
-            <input type="number" min={0} className={inputCls} value={form.stock} onChange={(e) => set({ stock: Number(e.target.value) })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-500">Punto de pedido</label>
-            <input type="number" min={0} className={inputCls} value={form.minStock} onChange={(e) => set({ minStock: Number(e.target.value) })} />
-          </div>
+          {stockOn && (
+            <>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-500">Stock actual</label>
+                <input type="number" min={0} className={inputCls} value={form.stock} onChange={(e) => set({ stock: Number(e.target.value) })} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-500">Punto de pedido</label>
+                <input type="number" min={0} className={inputCls} value={form.minStock} onChange={(e) => set({ minStock: Number(e.target.value) })} />
+              </div>
+            </>
+          )}
         </div>
       </div>
 

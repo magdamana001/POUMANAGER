@@ -6,6 +6,20 @@ export interface Identification {
   emoji: string;
 }
 
+/** Línea extraída de un albarán/factura. */
+export interface InvoiceLine {
+  name: string;
+  qty: number;
+  unit: string;
+  price: number;
+}
+
+export interface InvoiceScan {
+  lines: InvoiceLine[];
+  supplier?: string;
+  date?: string;
+}
+
 /** Identifica un producto a partir de una imagen. */
 export async function identifyProduct(
   base64: string,
@@ -24,14 +38,18 @@ export async function identifyProduct(
 }
 
 /**
- * Genera una miniatura profesional del producto. Si se pasa una imagen, la
- * reconvierte (edición); si no, la crea a partir del nombre.
+ * Genera una miniatura profesional o un logo. Si se pasa una imagen, la
+ * reconvierte; si no, la crea a partir del nombre/contexto.
  * Devuelve un data URL de imagen.
  */
 export async function generateThumbnail(opts: {
   imageBase64?: string;
   mimeType?: string;
   name?: string;
+  /** "product" (por defecto) o "logo". */
+  mode?: "product" | "logo";
+  /** Contexto extra (p. ej. productos que suministra) para el logo. */
+  context?: string;
 }): Promise<string> {
   const res = await fetch("/api/thumbnail", {
     method: "POST",
@@ -45,4 +63,18 @@ export async function generateThumbnail(opts: {
   const { image } = (await res.json()) as { image: string };
   if (!image) throw new Error("La IA no devolvió imagen");
   return image;
+}
+
+/** Escanea un albarán/factura y extrae sus líneas (nombre, cantidad, precio). */
+export async function scanInvoice(base64: string, mimeType: string): Promise<InvoiceScan> {
+  const res = await fetch("/api/invoice", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageBase64: base64, mimeType }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Error al escanear el albarán");
+  }
+  return (await res.json()) as InvoiceScan;
 }

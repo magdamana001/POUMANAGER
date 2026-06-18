@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useConfig } from "@/core/config/ConfigProvider";
 import { useOrders } from "../store";
+import { useStockControl } from "../hooks";
 import type { Order, OrderStatus } from "../types";
 import { printOrder } from "../print";
 import { renderOrderImage, downloadDataUrl } from "../orderImage";
@@ -26,6 +27,7 @@ export function OrdersTab() {
   const { config } = useConfig();
   const currency = config.general.currency;
   const { suppliers, products, orders, saveOrder, removeOrder, confirmReception } = useOrders();
+  const stockOn = useStockControl();
   const [editing, setEditing] = useState<Order | null>(null);
   const [verifying, setVerifying] = useState<Order | null>(null);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "todos">("todos");
@@ -76,16 +78,21 @@ export function OrdersTab() {
   }
 
   if (editing) {
-    return <OrderEditor order={editing} currency={currency} onCancel={() => setEditing(null)} onSave={(o) => { saveOrder(o); setEditing(null); }} />;
+    return <OrderEditor order={editing} currency={currency} stockOn={stockOn} onCancel={() => setEditing(null)} onSave={(o) => { saveOrder(o); setEditing(null); }} />;
   }
 
   if (verifying) {
     return (
       <ReceptionView
         order={verifying}
+        stockOn={stockOn}
         onCancel={() => setVerifying(null)}
         onProgress={(o) => { saveOrder(o); setVerifying(null); }}
-        onConfirm={(o) => { confirmReception(o); setVerifying(null); }}
+        onConfirm={(o) => {
+          if (stockOn) confirmReception(o);
+          else saveOrder({ ...o, status: "recibido", receivedAt: todayISO() });
+          setVerifying(null);
+        }}
       />
     );
   }
@@ -132,7 +139,7 @@ export function OrdersTab() {
             return (
               <div key={o.id} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:shadow-md">
                 <div className="flex items-center gap-3">
-                  <SupplierAvatar name={s?.name ?? "?"} color={s?.color} />
+                  <SupplierAvatar name={s?.name ?? "?"} color={s?.color} logo={s?.logo} />
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-2 truncate font-semibold">
                       <span className="text-xs font-medium text-neutral-400">{formatRef(o.reference)}</span>
@@ -222,11 +229,13 @@ function EmptyState({ children }: { children: React.ReactNode }) {
 function OrderEditor({
   order,
   currency,
+  stockOn,
   onSave,
   onCancel,
 }: {
   order: Order;
   currency: string;
+  stockOn: boolean;
   onSave: (o: Order) => void;
   onCancel: () => void;
 }) {
@@ -273,9 +282,11 @@ function OrderEditor({
               ))}
             </select>
           </div>
-          <button onClick={suggest} className="rounded-xl border border-brand bg-brand-soft px-3 py-2 text-sm font-medium text-brand transition hover:bg-brand/10">
-            💡 Sugerir por stock bajo
-          </button>
+          {stockOn && (
+            <button onClick={suggest} className="rounded-xl border border-brand bg-brand-soft px-3 py-2 text-sm font-medium text-brand transition hover:bg-brand/10">
+              💡 Sugerir por stock bajo
+            </button>
+          )}
         </div>
       </div>
 
@@ -306,8 +317,8 @@ function OrderEditor({
                     <p className="flex flex-wrap items-center gap-x-2 text-xs text-neutral-400">
                       <span>{p.unit}</span>
                       {p.price ? <span>· {formatMoney(p.price, currency)}</span> : null}
-                      <span>· stock {p.stock ?? 0}</span>
-                      {isLowStock(p) && <span className="rounded bg-red-100 px-1.5 font-medium text-red-700">bajo</span>}
+                      {stockOn && <span>· stock {p.stock ?? 0}</span>}
+                      {stockOn && isLowStock(p) && <span className="rounded bg-red-100 px-1.5 font-medium text-red-700">bajo</span>}
                     </p>
                   </div>
                   {q > 0 && (
@@ -349,11 +360,13 @@ function OrderEditor({
 /** Checklist de recepción: marca qué llegó, suma al stock al confirmar. */
 function ReceptionView({
   order,
+  stockOn,
   onConfirm,
   onProgress,
   onCancel,
 }: {
   order: Order;
+  stockOn: boolean;
   onConfirm: (o: Order) => void;
   onProgress: (o: Order) => void;
   onCancel: () => void;
@@ -381,7 +394,7 @@ function ReceptionView({
     <div className="space-y-4 pb-24">
       <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <SupplierAvatar name={supplier?.name ?? "?"} color={supplier?.color} />
+          <SupplierAvatar name={supplier?.name ?? "?"} color={supplier?.color} logo={supplier?.logo} />
           <div className="min-w-0 flex-1">
             <h3 className="truncate font-semibold">Recepción · {supplier?.name}</h3>
             <p className="text-xs text-neutral-500">{checked}/{total} verificados · {pct}%</p>
@@ -423,7 +436,7 @@ function ReceptionView({
               Guardar avance
             </button>
             <button onClick={() => onConfirm({ ...order, lines })} disabled={!allChecked} className="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-green-700 disabled:opacity-40">
-              Confirmar y sumar al stock
+              {stockOn ? "Confirmar y sumar al stock" : "Confirmar recepción"}
             </button>
           </div>
         </div>

@@ -18,31 +18,40 @@ export async function POST(req: Request) {
   let imageBase64: string | undefined;
   let mimeType = "image/jpeg";
   let name = "";
+  let mode: "product" | "logo" = "product";
+  let context = "";
   try {
     const body = await req.json();
     imageBase64 = body.imageBase64;
     if (body.mimeType) mimeType = body.mimeType;
-    name = (body.name || "").toString().trim();
+    name = (body.name || "").toString();
+    if (body.mode === "logo") mode = "logo";
+    context = (body.context || "").toString();
   } catch {
     return NextResponse.json({ error: "Petición inválida." }, { status: 400 });
   }
 
-  // 1) Describir el producto (mejora mucho el resultado si hay foto).
+  // 1) Describir el producto (solo para miniaturas con foto).
   let subject = name;
-  if (imageBase64) {
+  if (mode === "product" && imageBase64) {
     const described = await describeProduct(imageBase64, mimeType);
     if (described) subject = described;
   }
   if (!subject) {
-    return NextResponse.json(
-      { error: "Falta el nombre del producto o una imagen." },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Falta el nombre del producto o una imagen." }, { status: 400 });
   }
 
-  const positive = `professional product photo of ${subject}, single product centered, plain solid white background, soft studio lighting, clean e-commerce catalog style, high detail, square`;
-  const negative =
-    "text, watermark, logo, hands, people, cluttered background, multiple products, blurry, low quality";
+  let positive: string;
+  let negative: string;
+  if (mode === "logo") {
+    positive = `flat minimalist vector logo emblem for a business named "${name}"${
+      context ? `, a supplier of ${context}` : ""
+    }. Simple iconic symbol, bold clean shapes, balanced composition, solid white background, centered, professional modern brand identity, sticker style.`;
+    negative = "photo, realistic, photograph, 3d render, paragraphs of text, watermark, busy background, clutter, low quality";
+  } else {
+    positive = `professional product photo of ${subject}, single product centered, plain solid white background, soft studio lighting, clean e-commerce catalog style, high detail, square`;
+    negative = "text, watermark, logo, hands, people, cluttered background, multiple products, blurry, low quality";
+  }
 
   const errors: string[] = [];
 

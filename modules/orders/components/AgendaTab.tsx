@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useConfig } from "@/core/config/ConfigProvider";
 import { useOrders } from "../store";
+import { useStockControl } from "../hooks";
 import type { Order, Product } from "../types";
 import { SupplierAvatar } from "./ui";
 import {
@@ -24,6 +25,7 @@ export function AgendaTab() {
   const { config } = useConfig();
   const currency = config.general.currency;
   const { suppliers, products, orders } = useOrders();
+  const stockOn = useStockControl();
   const today = todayWeekdayIndex();
   const weekStart = addDays(todayISO(), -today); // lunes de esta semana
 
@@ -43,6 +45,7 @@ export function AgendaTab() {
 
   const supplierName = (id: string) => suppliers.find((s) => s.id === id)?.name ?? "—";
   const supplierColor = (id: string) => suppliers.find((s) => s.id === id)?.color ?? "#999";
+  const supplierLogo = (id: string) => suppliers.find((s) => s.id === id)?.logo;
 
   return (
     <div className="space-y-6">
@@ -50,7 +53,9 @@ export function AgendaTab() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi icon="🚚" label="Proveedores hoy" value={String(todaySuppliers.length)} hint={WEEKDAYS[today]} />
         <Kpi icon="📦" label="Pedidos por recibir" value={String(pending.length)} hint={overdue > 0 ? `${overdue} atrasados` : "al día"} accent={overdue > 0 ? "red" : "blue"} />
-        <Kpi icon="⚠️" label="Bajo mínimo" value={String(lowStock.length)} hint={lowStock.length ? "requiere pedido" : "stock ok"} accent={lowStock.length ? "red" : "green"} />
+        {stockOn && (
+          <Kpi icon="⚠️" label="Bajo mínimo" value={String(lowStock.length)} hint={lowStock.length ? "requiere pedido" : "stock ok"} accent={lowStock.length ? "red" : "green"} />
+        )}
         <Kpi icon="💶" label="Gasto del mes" value={formatMoney(monthSpend, currency)} hint="pedidos creados" accent="brand" />
       </div>
 
@@ -80,7 +85,7 @@ export function AgendaTab() {
                   ) : (
                     list.map((s) => (
                       <div key={s.id} className="flex items-center gap-1.5" title={s.name}>
-                        <SupplierAvatar name={s.name} color={s.color} size={20} />
+                        <SupplierAvatar name={s.name} color={s.color} logo={s.logo} size={20} />
                         <span className="truncate text-[11px] text-neutral-700">{s.name}</span>
                       </div>
                     ))
@@ -105,7 +110,7 @@ export function AgendaTab() {
                 const info = alertInfo(o);
                 return (
                   <li key={o.id} className="flex items-center gap-3 rounded-xl border border-neutral-100 p-2.5">
-                    <SupplierAvatar name={supplierName(o.supplierId)} color={supplierColor(o.supplierId)} size={32} />
+                    <SupplierAvatar name={supplierName(o.supplierId)} color={supplierColor(o.supplierId)} logo={supplierLogo(o.supplierId)} size={32} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
                         <span className="text-xs text-neutral-400">{formatRef(o.reference)} </span>
@@ -124,19 +129,21 @@ export function AgendaTab() {
         </section>
 
         {/* Stock bajo mínimo */}
-        <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-1 font-semibold">Reposición necesaria</h2>
-          <p className="mb-4 text-sm text-neutral-500">Productos en el punto de pedido o por debajo.</p>
-          {lowStock.length === 0 ? (
-            <Empty>Todo el stock está por encima del mínimo. 👍</Empty>
-          ) : (
-            <ul className="space-y-2.5">
-              {lowStock.map((p) => (
-                <LowStockRow key={p.id} product={p} color={supplierColor(p.supplierId)} />
-              ))}
-            </ul>
-          )}
-        </section>
+        {stockOn && (
+          <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-1 font-semibold">Reposición necesaria</h2>
+            <p className="mb-4 text-sm text-neutral-500">Productos en el punto de pedido o por debajo.</p>
+            {lowStock.length === 0 ? (
+              <Empty>Todo el stock está por encima del mínimo. 👍</Empty>
+            ) : (
+              <ul className="space-y-2.5">
+                {lowStock.map((p) => (
+                  <LowStockRow key={p.id} product={p} color={supplierColor(p.supplierId)} />
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );

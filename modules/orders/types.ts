@@ -11,6 +11,8 @@ export interface Supplier {
   leadDays: number;
   /** Notas internas del proveedor. */
   notes?: string;
+  /** Logo del proveedor: emoji o data URL de imagen (opcional). */
+  logo?: string;
   color: string;
 }
 

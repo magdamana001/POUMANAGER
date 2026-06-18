@@ -67,6 +67,13 @@ export const ordersModule: ModuleDefinition = {
   settings: {
     fields: [
       {
+        key: "stockControl",
+        label: "Control de stock",
+        type: "boolean",
+        defaultValue: true,
+        description: "Activa el inventario (stock, mínimos, sugerencias). Si lo desactivas, se ocultan en toda la app.",
+      },
+      {
         key: "defaultLeadDays",
         label: "Días de entrega por defecto",
         type: "number",

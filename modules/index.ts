@@ -3,6 +3,7 @@ import { timeTrackingModule } from "./time-tracking";
 import { menusModule } from "./menus";
 import { ordersModule } from "./orders";
 import { scannerModule } from "./scanner";
+import { invoiceScannerModule } from "./invoice-scanner";
 
 /**
  * ÚNICA lista a editar para enchufar un módulo nuevo.
@@ -19,4 +20,5 @@ export const modules: ModuleDefinition[] = [
   menusModule,
   ordersModule,
   scannerModule,
+  invoiceScannerModule,
 ];

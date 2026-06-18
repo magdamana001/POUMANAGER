@@ -6,8 +6,29 @@ import type { OrderStatus } from "../types";
 export const inputCls =
   "w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-brand focus:ring-2 focus:ring-brand/20 focus:outline-none";
 
-/** Avatar circular del proveedor (inicial sobre su color). */
-export function SupplierAvatar({ name, color, size = 36 }: { name: string; color?: string; size?: number }) {
+/** Avatar circular del proveedor: su logo si tiene, si no la inicial sobre su color. */
+export function SupplierAvatar({
+  name,
+  color,
+  size = 36,
+  logo,
+}: {
+  name: string;
+  color?: string;
+  size?: number;
+  logo?: string;
+}) {
+  if (logo) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={logo}
+        alt={name}
+        className="shrink-0 rounded-full object-cover"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
   return (
     <span
       className="flex shrink-0 items-center justify-center rounded-full font-semibold text-white"

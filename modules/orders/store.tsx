@@ -32,6 +32,8 @@ interface StoreValue {
   addProduct: (p: Omit<Product, "id">) => void;
   updateProduct: (id: string, patch: Partial<Product>) => void;
   removeProduct: (id: string) => void;
+  /** Borra varios productos a la vez (y limpia sus líneas en pedidos). */
+  removeProducts: (ids: string[]) => void;
   /** Ajusta el stock de un producto (delta positivo o negativo). */
   adjustStock: (id: string, delta: number) => void;
   saveOrder: (o: Order) => void;
@@ -84,6 +86,18 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
             lines: o.lines.filter((l) => l.productId !== id),
           })),
         })),
+      removeProducts: (ids) =>
+        mutate((d) => {
+          const set = new Set(ids);
+          return {
+            ...d,
+            products: d.products.filter((x) => !set.has(x.id)),
+            orders: d.orders.map((o) => ({
+              ...o,
+              lines: o.lines.filter((l) => !set.has(l.productId)),
+            })),
+          };
+        }),
       adjustStock: (id, delta) =>
         mutate((d) => ({
           ...d,
