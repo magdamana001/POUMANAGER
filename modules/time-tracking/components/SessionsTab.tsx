@@ -261,31 +261,25 @@ export function SessionsTab() {
                 return (
                   <li
                     key={s.id}
-                    className={`flex items-center gap-3 py-2 text-sm ${editingId === s.id ? "rounded-lg bg-brand-soft px-2" : ""}`}
+                    className={`flex flex-col gap-1.5 py-2.5 text-sm sm:flex-row sm:items-center sm:gap-3 ${editingId === s.id ? "rounded-lg bg-brand-soft px-2" : ""}`}
                   >
-                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: e?.color ?? "#999" }} />
-                    <span className="w-28 shrink-0 truncate font-medium">{e?.name ?? "—"}</span>
-                    <span className="w-24 shrink-0 text-neutral-500">{s.date}</span>
-                    <span className="w-28 shrink-0 text-neutral-500">
-                      {open ? (
-                        <span className="text-green-600">{s.start} · en curso</span>
-                      ) : (
-                        `${s.start}–${s.end}`
-                      )}
-                    </span>
-                    <span className="w-16 shrink-0 text-xs text-neutral-400">
-                      {s.breakMinutes ? `−${s.breakMinutes}m` : ""}
-                    </span>
-                    <span className="w-16 shrink-0 font-medium">
-                      {open ? "—" : formatHours(sessionNetHours(s, rounding))}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-neutral-400">{s.note}</span>
-                    <button onClick={() => startEdit(s.id)} className="shrink-0 rounded px-2 py-1 text-neutral-600 hover:bg-neutral-100">
-                      Editar
-                    </button>
-                    <button onClick={() => removeSession(s.id)} className="shrink-0 rounded px-2 py-1 text-red-500 hover:bg-red-50">
-                      ✕
-                    </button>
+                    <div className="flex min-w-0 items-center gap-2 sm:w-40 sm:shrink-0">
+                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: e?.color ?? "#999" }} />
+                      <span className="truncate font-medium">{e?.name ?? "—"}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-neutral-500 sm:flex-1">
+                      <span>{s.date}</span>
+                      <span>
+                        {open ? <span className="text-green-600">{s.start} · en curso</span> : `${s.start}–${s.end}`}
+                      </span>
+                      {s.breakMinutes ? <span className="text-xs text-neutral-400">−{s.breakMinutes}m</span> : null}
+                      <span className="font-medium text-neutral-700">{open ? "—" : formatHours(sessionNetHours(s, rounding))}</span>
+                      {s.note ? <span className="min-w-0 truncate text-neutral-400">· {s.note}</span> : null}
+                    </div>
+                    <div className="flex gap-1 sm:shrink-0">
+                      <button onClick={() => startEdit(s.id)} className="rounded px-2 py-1 text-neutral-600 hover:bg-neutral-100">Editar</button>
+                      <button onClick={() => removeSession(s.id)} className="rounded px-2 py-1 text-red-500 hover:bg-red-50">✕</button>
+                    </div>
                   </li>
                 );
               })}

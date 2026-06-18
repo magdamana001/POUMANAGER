@@ -217,7 +217,7 @@ export function EmployeesTab() {
           ) : (
             <ul className="space-y-2">
               {filtered.map((e) => (
-                <li key={e.id} className={`flex items-center gap-3 rounded-xl border p-3 ${e.active ? "border-neutral-100 bg-neutral-50" : "border-neutral-100 bg-neutral-100/60 opacity-70"}`}>
+                <li key={e.id} className={`flex flex-wrap items-center gap-2 rounded-xl border p-3 ${e.active ? "border-neutral-100 bg-neutral-50" : "border-neutral-100 bg-neutral-100/60 opacity-70"}`}>
                   <EmployeeAvatar name={e.name} color={e.color} avatar={e.avatar} size={40} />
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-2 truncate font-medium">
@@ -229,9 +229,11 @@ export function EmployeesTab() {
                       {e.phone ? ` · ${e.phone}` : ""}
                     </p>
                   </div>
-                  <button onClick={() => updateEmployee(e.id, { active: !e.active })} className="shrink-0 rounded-lg px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-200">{e.active ? "Desactivar" : "Activar"}</button>
-                  <button onClick={() => startEdit(e)} className="shrink-0 rounded-lg px-2 py-1 text-sm text-neutral-600 hover:bg-neutral-200">Editar</button>
-                  <button onClick={() => { if (confirm(`¿Eliminar a ${e.name}? Se borran también sus jornadas.`)) removeEmployee(e.id); }} className="shrink-0 rounded-lg px-2 py-1 text-sm text-red-500 hover:bg-red-50">Eliminar</button>
+                  <div className="flex w-full justify-end gap-1 sm:w-auto">
+                    <button onClick={() => updateEmployee(e.id, { active: !e.active })} className="rounded-lg px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-200">{e.active ? "Desactivar" : "Activar"}</button>
+                    <button onClick={() => startEdit(e)} className="rounded-lg px-2 py-1 text-sm text-neutral-600 hover:bg-neutral-200">Editar</button>
+                    <button onClick={() => { if (confirm(`¿Eliminar a ${e.name}? Se borran también sus jornadas.`)) removeEmployee(e.id); }} className="rounded-lg px-2 py-1 text-sm text-red-500 hover:bg-red-50">Eliminar</button>
+                  </div>
                 </li>
               ))}
             </ul>
