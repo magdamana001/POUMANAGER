@@ -4,6 +4,7 @@ import { useConfig } from "@/core/config/ConfigProvider";
 import { GENERAL_SCHEMA } from "@/core/config/types";
 import { getAllModules } from "@/core/modules/registry";
 import { SettingsField } from "@/core/components/SettingsField";
+import { NotificationsSettings } from "@/core/notifications/NotificationsSettings";
 
 export default function AdminPage() {
   const {
@@ -44,6 +45,9 @@ export default function AdminPage() {
           ))}
         </div>
       </section>
+
+      {/* Notificaciones */}
+      <NotificationsSettings />
 
       {/* Configuración por módulo (auto-generada) */}
       <section className="space-y-4">

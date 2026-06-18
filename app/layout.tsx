@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ConfigProvider } from "@/core/config/ConfigProvider";
+import { NotificationsProvider } from "@/core/notifications/store";
 import { AppShell } from "@/core/components/AppShell";
 
 export const metadata: Metadata = {
@@ -26,7 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ConfigProvider>
-          <AppShell>{children}</AppShell>
+          <NotificationsProvider>
+            <AppShell>{children}</AppShell>
+          </NotificationsProvider>
         </ConfigProvider>
       </body>
     </html>
