@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useConfig } from "@/core/config/ConfigProvider";
 import { getAllModules } from "@/core/modules/registry";
+import { NotificationBanner } from "@/core/notifications/NotificationBanner";
 
 /**
  * Shell responsive de la app: cabecera, navegación lateral y contenido.
@@ -92,7 +93,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="font-semibold">{config.general.businessName}</span>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+          <NotificationBanner />
+          {children}
+        </main>
       </div>
     </div>
   );
