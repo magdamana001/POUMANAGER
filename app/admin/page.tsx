@@ -93,6 +93,12 @@ export default function AdminPage() {
                   ))}
                 </div>
               )}
+
+              {state?.enabled && mod.SettingsPanel && (
+                <div className="mt-5 border-t border-neutral-100 pt-5">
+                  <mod.SettingsPanel />
+                </div>
+              )}
             </div>
           );
         })}

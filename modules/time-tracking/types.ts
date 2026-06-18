@@ -20,6 +20,8 @@ export interface Employee {
   notes: string;
   /** Color identificativo en listados. */
   color: string;
+  /** Avatar: emoji o data URL de foto (opcional). */
+  avatar?: string;
 }
 
 /** Registro de una jornada trabajada. */

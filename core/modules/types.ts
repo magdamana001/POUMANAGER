@@ -1,5 +1,4 @@
 import type { ComponentType } from "react";
-
 /**
  * Tipos de campo soportados por el panel de configuración.
  * Al añadir un tipo nuevo aquí + en SettingsField.tsx, todos los
@@ -50,4 +49,11 @@ export interface ModuleDefinition {
   Page: ComponentType;
   /** Esquema de ajustes que el panel de admin renderiza solo. */
   settings?: SettingsSchema;
+  /**
+   * Panel de ajustes personalizado del módulo (opcional). El panel de admin
+   * lo renderiza dentro de la sección del módulo, bajo los campos del esquema.
+   * Útil para gestiones que no encajan en campos simples (p. ej. subir
+   * imágenes o gestionar listas).
+   */
+  SettingsPanel?: ComponentType;
 }

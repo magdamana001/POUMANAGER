@@ -2,6 +2,7 @@
 
 import type { ModuleDefinition } from "@/core/modules/types";
 import { MenuEditor } from "./MenuEditor";
+import { MenuTemplatesSettings } from "./SettingsPanel";
 
 function MenusPage() {
   return (
@@ -9,7 +10,7 @@ function MenusPage() {
       <header>
         <h1 className="text-2xl font-bold">Menú del día</h1>
         <p className="text-neutral-500">
-          Escribe el día y los platos: se componen sobre la plantilla y descargas la imagen.
+          Elige una plantilla, escribe el día y los platos, y descarga la imagen.
         </p>
       </header>
       <MenuEditor />
@@ -25,15 +26,9 @@ export const menusModule: ModuleDefinition = {
   order: 2,
   enabledByDefault: true,
   Page: MenusPage,
+  SettingsPanel: MenuTemplatesSettings,
   settings: {
     fields: [
-      {
-        key: "templateSrc",
-        label: "Ruta de la plantilla",
-        type: "text",
-        defaultValue: "/templates/menu-dia.png",
-        description: "Imagen de fondo del menú (en /public o una URL del mismo origen).",
-      },
       {
         key: "textColor",
         label: "Color del texto",

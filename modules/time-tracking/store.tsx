@@ -31,6 +31,7 @@ function normalize(stored: TimeTrackingData | undefined): TimeTrackingData {
         active: e.active ?? true,
         notes: e.notes ?? "",
         color: e.color ?? "#e11d48",
+        avatar: e.avatar,
       };
     }),
     sessions: stored?.sessions ?? [],

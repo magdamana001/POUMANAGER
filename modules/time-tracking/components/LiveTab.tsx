@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTimeTracking } from "../store";
 import { useRounding, useTick } from "../hooks";
+import { EmployeeAvatar } from "./EmployeeAvatar";
 import {
   formatHours,
   formatMinutes,
@@ -92,7 +93,7 @@ export function LiveTab() {
               }`}
             >
               <div className="flex items-center gap-3">
-                <span className="h-9 w-9 shrink-0 rounded-full" style={{ backgroundColor: e.color }} />
+                <EmployeeAvatar name={e.name} color={e.color} avatar={e.avatar} size={36} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{e.name}</p>
                   <p className="truncate text-xs text-neutral-500">{e.position || "—"}</p>
