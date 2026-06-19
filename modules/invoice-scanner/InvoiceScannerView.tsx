@@ -29,6 +29,7 @@ export function InvoiceScannerView() {
   const stockOn = useStockControl();
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? "");
   const [photo, setPhoto] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -37,9 +38,12 @@ export function InvoiceScannerView() {
   const [rows, setRows] = useState<Row[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
 
+  // Proveedor resuelto (los proveedores pueden cargar después del montaje).
+  const sid = supplierId || suppliers[0]?.id || "";
+
   const supplierProducts = useMemo(
-    () => products.filter((p) => p.supplierId === supplierId),
-    [products, supplierId]
+    () => products.filter((p) => p.supplierId === sid),
+    [products, sid]
   );
   const findExisting = (name: string) =>
     supplierProducts.find((p) => p.name.trim().toLowerCase() === name.trim().toLowerCase());
@@ -76,7 +80,7 @@ export function InvoiceScannerView() {
   };
 
   const apply = () => {
-    if (!supplierId) return;
+    if (!sid) return;
     let created = 0;
     let updated = 0;
     rows
@@ -90,7 +94,7 @@ export function InvoiceScannerView() {
         } else {
           addProduct({
             name: r.name.trim(),
-            supplierId,
+            supplierId: sid,
             unit: r.unit || "ud",
             price: r.price || 0,
             stock: stockOn ? r.qty || 0 : 0,
@@ -106,6 +110,7 @@ export function InvoiceScannerView() {
     setPhoto(null);
     setPhase("idle");
     if (fileRef.current) fileRef.current.value = "";
+    if (uploadRef.current) uploadRef.current.value = "";
   };
 
   const includedCount = rows.filter((r) => r.include).length;
@@ -136,7 +141,7 @@ export function InvoiceScannerView() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="flex-1">
             <label className="mb-1 block text-xs font-medium text-neutral-500">Proveedor destino</label>
-            <select className={inputCls} value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+            <select className={inputCls} value={sid} onChange={(e) => setSupplierId(e.target.value)}>
               {suppliers.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
@@ -146,12 +151,21 @@ export function InvoiceScannerView() {
             )}
           </div>
           <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onPick(e.target.files?.[0])} />
-          <button
-            onClick={() => fileRef.current?.click()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-5 py-2.5 font-medium text-white shadow-sm transition hover:opacity-90 active:scale-[0.98]"
-          >
-            📷 {photo ? "Escanear otro" : "Escanear albarán"}
-          </button>
+          <input ref={uploadRef} type="file" accept="image/*" className="hidden" onChange={(e) => onPick(e.target.files?.[0])} />
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-5 py-2.5 font-medium text-white shadow-sm transition hover:opacity-90 active:scale-[0.98]"
+            >
+              📷 {photo ? "Otra foto" : "Hacer foto"}
+            </button>
+            <button
+              onClick={() => uploadRef.current?.click()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 px-5 py-2.5 font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-100"
+            >
+              🖼 Subir imagen
+            </button>
+          </div>
         </div>
 
         {photo && (
@@ -167,7 +181,7 @@ export function InvoiceScannerView() {
       {phase === "ready" && (
         <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
-            <SupplierAvatar name={suppliers.find((s) => s.id === supplierId)?.name ?? "?"} color={suppliers.find((s) => s.id === supplierId)?.color} logo={suppliers.find((s) => s.id === supplierId)?.logo} size={28} />
+            <SupplierAvatar name={suppliers.find((s) => s.id === sid)?.name ?? "?"} color={suppliers.find((s) => s.id === sid)?.color} logo={suppliers.find((s) => s.id === sid)?.logo} size={28} />
             <h3 className="font-semibold">Líneas detectadas ({rows.length})</h3>
             <button
               onClick={() => setRows((rs) => [...rs, { id: `${Date.now()}`, include: true, name: "", qty: 1, unit: "ud", price: 0 }])}
