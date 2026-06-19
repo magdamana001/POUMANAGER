@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePersistentState } from "@/core/db/usePersistentState";
-import { disablePush as doDisablePush, enablePush as doEnablePush, isPushSubscribed, pushSupported } from "./push";
+import { disablePush as doDisablePush, enablePush as doEnablePush, isFirefoxDesktop, isPushSubscribed, pushSupported } from "./push";
 
 export const WEEKDAYS_SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
@@ -76,6 +76,7 @@ interface StoreValue {
   permission: Permission;
   pushEnabled: boolean;
   pushSupported: boolean;
+  isFirefox: boolean;
   setEnabled: (v: boolean) => void;
   addReminder: () => void;
   updateReminder: (id: string, patch: Partial<Reminder>) => void;
@@ -174,6 +175,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       permission,
       pushEnabled,
       pushSupported: pushSupported(),
+      isFirefox: isFirefoxDesktop(),
       setEnabled: (v) => mutate((d) => ({ ...d, enabled: v })),
       addReminder: () =>
         mutate((d) => ({

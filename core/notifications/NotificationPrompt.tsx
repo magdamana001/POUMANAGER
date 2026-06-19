@@ -11,7 +11,7 @@ const DISMISSED_KEY = "espou-notif-prompt-dismissed";
  * como "descartado" y no vuelve a molestar (verá el banner en su lugar).
  */
 export function NotificationPrompt() {
-  const { permission, pushEnabled, pushSupported: hasPush, requestPermission, enablePush, setEnabled } = useNotifications();
+  const { permission, pushEnabled, pushSupported: hasPush, isFirefox, requestPermission, enablePush, setEnabled } = useNotifications();
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -42,7 +42,7 @@ export function NotificationPrompt() {
       await new Promise((r) => setTimeout(r, 1500));
       if (Notification.permission === "granted") {
         setEnabled(true);
-        if (hasPush) await enablePush();
+        if (hasPush && !isFirefox) await enablePush();
       }
     } catch {
       /* ignore */

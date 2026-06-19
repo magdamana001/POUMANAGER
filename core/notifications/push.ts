@@ -9,6 +9,13 @@ export function pushSupported(): boolean {
   );
 }
 
+/** Firefox desktop tiene problemas conocidos con Web Push VAPID. */
+export function isFirefoxDesktop(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /Firefox/i.test(ua) && !/Mobile|Android/i.test(ua);
+}
+
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
   const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
