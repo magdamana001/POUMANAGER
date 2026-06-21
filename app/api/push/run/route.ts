@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 import { kvGet, kvSet } from "@/core/server/kv";
+import { categoryIcon } from "@/core/notifications/categories";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +13,9 @@ const CONFIG_KEY = "espou-manager-config";
 
 interface Reminder {
   id: string;
+  title?: string;
   label: string;
+  category?: string;
   time: string;
   days: number[];
   enabled: boolean;
@@ -91,7 +94,9 @@ async function handle(req: Request) {
   let count = 0;
 
   for (const r of pending) {
-    const payload = JSON.stringify({ title: "Espou Manager", body: r.label, tag: r.id });
+    const icon = categoryIcon(r.category);
+    const title = r.title ? `${icon} ${r.title}` : "Espou Manager";
+    const payload = JSON.stringify({ title, body: r.label, tag: r.id });
     await Promise.all(
       subs.map(async (s) => {
         try {
