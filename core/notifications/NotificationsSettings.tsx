@@ -16,15 +16,6 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
   );
 }
 
-function Step({ n, text }: { n: number; text: React.ReactNode }) {
-  return (
-    <div className="flex gap-3">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">{n}</span>
-      <p className="text-sm text-neutral-600">{text}</p>
-    </div>
-  );
-}
-
 export function NotificationsSettings() {
   const {
     enabled, reminders, permission, pushEnabled, pushSupported, isFirefox,
@@ -168,52 +159,9 @@ export function NotificationsSettings() {
         )}
       </div>
 
-      {/* Guía GitHub Actions */}
-      <details className="mt-5">
-        <summary className="cursor-pointer select-none rounded-xl bg-neutral-50 px-4 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-100">
-          ⚙️ Configuración del cron (GitHub Actions)
-        </summary>
-        <div className="mt-3 space-y-4 rounded-xl border border-neutral-200 p-4">
-          <p className="text-sm text-neutral-600">
-            Los push se envían mediante un <strong>cron de GitHub Actions</strong> (gratis) que llama a
-            <code className="mx-1 rounded bg-neutral-100 px-1 text-xs">/api/push/run</code>
-            cada 5 minutos. Configura los dos secrets en tu repositorio de GitHub:
-          </p>
-          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">
-            GitHub → tu repo → Settings → Secrets and variables → Actions → New repository secret
-          </p>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[400px] text-sm">
-              <thead>
-                <tr className="border-b border-neutral-200 text-left text-xs uppercase text-neutral-400">
-                  <th className="pb-2 pr-4">Secret</th>
-                  <th className="pb-2">Valor</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                <tr>
-                  <td className="py-2 pr-4 font-mono text-xs font-semibold">APP_URL</td>
-                  <td className="py-2 text-xs text-neutral-600">Tu URL de Vercel, sin barra final<br/><span className="font-mono text-neutral-400">https://tu-proyecto.vercel.app</span></td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4 font-mono text-xs font-semibold">CRON_SECRET</td>
-                  <td className="py-2 text-xs text-neutral-600">El mismo valor que <code className="rounded bg-neutral-100 px-1">CRON_SECRET</code> de Vercel</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div className="space-y-3">
-            <Step n={1} text={<>Añade los dos secrets en tu repo de GitHub (tabla de arriba).</>} />
-            <Step n={2} text={<>Asegúrate de que el archivo <code className="rounded bg-neutral-100 px-1 text-xs">.github/workflows/push-cron.yml</code> está en tu repo (ya está creado en el proyecto).</>} />
-            <Step n={3} text={<>Haz commit y push de los cambios: <code className="rounded bg-neutral-100 px-1 text-xs">git push</code>. GitHub Actions se activa automáticamente.</>} />
-            <Step n={4} text={<>Verifica en GitHub → pestaña <strong>Actions</strong> → <strong>Push Notifications Cron</strong> → pulsa <strong>Run workflow</strong> para una prueba manual. Debe devolver respuesta 200.</>} />
-            <Step n={5} text={<>Activa el push en este dispositivo (botón «Activar push» arriba), crea un recordatorio de prueba a la hora actual y espera el aviso.</>} />
-          </div>
-          <p className="text-xs text-neutral-400">
-            GitHub Actions ejecuta el cron en UTC. Si tus recordatorios son a las 9:00 hora española (UTC+2 en verano), el cron lo enviará cuando sean las 7:00 UTC — el servidor calcula la hora en tu zona horaria configurada en General.
-          </p>
-        </div>
-      </details>
+      <p className="mt-5 rounded-xl bg-neutral-50 px-4 py-3 text-xs text-neutral-500">
+        ℹ️ El envío de los avisos (incluso con la app cerrada) se programa en la sección <strong>«Avisos programados (cron-job.org)»</strong>, más abajo en esta página.
+      </p>
     </section>
   );
 }

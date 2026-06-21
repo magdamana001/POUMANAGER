@@ -5,6 +5,7 @@ import { GENERAL_SCHEMA } from "@/core/config/types";
 import { getAllModules } from "@/core/modules/registry";
 import { SettingsField } from "@/core/components/SettingsField";
 import { NotificationsSettings } from "@/core/notifications/NotificationsSettings";
+import { CronSettings } from "@/core/notifications/CronSettings";
 
 export default function AdminPage() {
   const {
@@ -48,6 +49,9 @@ export default function AdminPage() {
 
       {/* Notificaciones */}
       <NotificationsSettings />
+
+      {/* Avisos programados (cron) */}
+      <CronSettings />
 
       {/* Configuración por módulo (auto-generada) */}
       <section className="space-y-4">

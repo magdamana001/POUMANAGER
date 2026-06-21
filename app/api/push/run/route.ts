@@ -9,7 +9,6 @@ const SUBS_KEY = "espou-push-subs";
 const SENT_KEY = "espou-push-sent";
 const NOTIF_KEY = "espou-notifications";
 const CONFIG_KEY = "espou-manager-config";
-const WINDOW_MIN = 5;
 
 interface Reminder {
   id: string;
@@ -70,12 +69,14 @@ async function handle(req: Request) {
   const tz = config?.general?.timezone || "Europe/Madrid";
   const { idx, minutes, dateKey } = localNow(tz);
 
+  // Vence si ya pasó su hora hoy. (GitHub Actions retrasa los cron; con esto
+  // el aviso se envía una vez al día en cuanto el cron corra tras la hora,
+  // aunque llegue con retraso, en lugar de perderse.)
   const due = (notif.reminders ?? []).filter((r) => {
     if (!r.enabled || !r.days.includes(idx)) return false;
     const [h, m] = r.time.split(":").map(Number);
     if (Number.isNaN(h) || Number.isNaN(m)) return false;
-    const remMin = h * 60 + m;
-    return minutes >= remMin && minutes - remMin <= WINDOW_MIN;
+    return minutes >= h * 60 + m;
   });
 
   const sent = (await kvGet<Record<string, boolean>>(SENT_KEY)) ?? {};
