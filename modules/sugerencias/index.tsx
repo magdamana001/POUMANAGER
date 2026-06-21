@@ -3,18 +3,21 @@
 import type { ModuleDefinition } from "@/core/modules/types";
 import { SuggestionsEditor } from "./SuggestionsEditor";
 import { SuggestionsTemplatesSettings } from "./SettingsPanel";
+import { SuggestionDishesProvider } from "./store";
 
 function SuggestionsPage() {
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">Sugerencias del fin de semana</h1>
-        <p className="text-neutral-500">
-          Elige la plantilla, escribe los platos con su precio y descarga la imagen.
-        </p>
-      </header>
-      <SuggestionsEditor />
-    </div>
+    <SuggestionDishesProvider>
+      <div className="space-y-6">
+        <header>
+          <h1 className="text-2xl font-bold">Sugerencias del fin de semana</h1>
+          <p className="text-neutral-500">
+            Elige la plantilla, escribe los platos con su precio y descarga la imagen.
+          </p>
+        </header>
+        <SuggestionsEditor />
+      </div>
+    </SuggestionDishesProvider>
   );
 }
 
