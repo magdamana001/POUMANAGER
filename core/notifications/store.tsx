@@ -105,7 +105,21 @@ function setFired(map: Record<string, boolean>) {
   }
 }
 
-function fire(label: string) {
+async function fire(label: string) {
+  try {
+    // En móvil (y recomendado en general) hay que usar el Service Worker.
+    if ("serviceWorker" in navigator) {
+      const reg =
+        (await navigator.serviceWorker.getRegistration()) ||
+        (await navigator.serviceWorker.register("/sw.js"));
+      if (reg) {
+        await reg.showNotification("Espou Manager", { body: label, icon: "/favicon.ico", tag: label });
+        return;
+      }
+    }
+  } catch {
+    /* cae al constructor abajo */
+  }
   try {
     new Notification("Espou Manager", { body: label, icon: "/favicon.ico", tag: label });
   } catch {
