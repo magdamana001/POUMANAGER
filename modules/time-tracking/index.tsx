@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ModuleDefinition } from "@/core/modules/types";
 import { TimeTrackingProvider } from "./store";
+import "./employeeSource"; // registra la fuente de empleados para el sistema de cuentas
 import { LiveTab } from "./components/LiveTab";
 import { EmployeesTab } from "./components/EmployeesTab";
 import { SessionsTab } from "./components/SessionsTab";

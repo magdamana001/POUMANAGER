@@ -7,11 +7,13 @@ import { getAllModules } from "@/core/modules/registry";
 import { SettingsField } from "@/core/components/SettingsField";
 import { NotificationsSettings } from "@/core/notifications/NotificationsSettings";
 import { CronSettings } from "@/core/notifications/CronSettings";
+import { UsersSettings } from "@/core/auth/UsersSettings";
 
 const TABS = [
   { id: "general", label: "General", icon: "🏢" },
   { id: "notifications", label: "Notificaciones", icon: "🔔" },
   { id: "modules", label: "Módulos", icon: "🧩" },
+  { id: "users", label: "Usuarios", icon: "👤" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -79,6 +81,15 @@ export default function AdminPage() {
           <NotificationsSettings />
           <CronSettings />
         </div>
+      )}
+
+      {/* Usuarios */}
+      {tab === "users" && (
+        <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-lg font-semibold">Usuarios y accesos</h2>
+          <p className="mb-4 text-sm text-neutral-500">Cuentas con acceso a la aplicación y su rol.</p>
+          <UsersSettings />
+        </section>
       )}
 
       {/* Módulos */}

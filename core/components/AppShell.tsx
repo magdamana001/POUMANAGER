@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useConfig } from "@/core/config/ConfigProvider";
 import { getAllModules } from "@/core/modules/registry";
 import { NotificationBanner } from "@/core/notifications/NotificationBanner";
+import { useAuth } from "@/core/auth/store";
 
 /**
  * Shell responsive de la app: cabecera, navegación lateral y contenido.
@@ -15,6 +16,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { config } = useConfig();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { currentUser, logout } = useAuth();
 
   const modules = getAllModules().filter((m) => config.modules[m.id]?.enabled);
 
@@ -75,8 +77,26 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="border-t border-neutral-200 px-4 py-3 text-xs text-neutral-400">
-          Espou Manager · v0.1
+        <div className="border-t border-neutral-200 px-3 py-3">
+          {currentUser && (
+            <div className="mb-2 flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
+                {currentUser.username.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{currentUser.username}</p>
+                <p className="text-xs text-neutral-400">{currentUser.role === "admin" ? "Administrador" : "Usuario"}</p>
+              </div>
+              <button
+                onClick={logout}
+                className="shrink-0 rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-200 hover:text-neutral-700"
+                title="Cerrar sesión"
+              >
+                ⎋
+              </button>
+            </div>
+          )}
+          <p className="px-1 text-xs text-neutral-400">Espou Manager · v0.1</p>
         </div>
       </aside>
 

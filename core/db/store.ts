@@ -94,8 +94,12 @@ export function subscribeEntry<T>(
 ): () => void {
   if (!supabase) return () => {};
   const client = supabase;
+  // Nombre de canal único por suscripción: permite que varios componentes
+  // observen la misma clave sin colisionar (Supabase no admite dos canales
+  // con el mismo topic recibiendo callbacks tras subscribe()).
+  const channelName = `kv:${key}:${Math.random().toString(36).slice(2)}`;
   const channel = client
-    .channel(`kv:${key}`)
+    .channel(channelName)
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: KV_TABLE, filter: `key=eq.${key}` },

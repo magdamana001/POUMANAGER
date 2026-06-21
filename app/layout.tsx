@@ -4,6 +4,8 @@ import { ConfigProvider } from "@/core/config/ConfigProvider";
 import { NotificationsProvider } from "@/core/notifications/store";
 import { NotificationPrompt } from "@/core/notifications/NotificationPrompt";
 import { AppShell } from "@/core/components/AppShell";
+import { AuthProvider } from "@/core/auth/store";
+import { AuthGate } from "@/core/auth/AuthGate";
 
 export const metadata: Metadata = {
   title: "Espou Manager",
@@ -28,10 +30,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ConfigProvider>
-          <NotificationsProvider>
-            <NotificationPrompt />
-            <AppShell>{children}</AppShell>
-          </NotificationsProvider>
+          <AuthProvider>
+            <AuthGate>
+              <NotificationsProvider>
+                <NotificationPrompt />
+                <AppShell>{children}</AppShell>
+              </NotificationsProvider>
+            </AuthGate>
+          </AuthProvider>
         </ConfigProvider>
       </body>
     </html>
