@@ -9,17 +9,31 @@ const DIR = path.join(process.cwd(), "public", "templates");
 const IMG_RE = /\.(png|jpe?g|webp)$/i;
 const SAFE_FILE = /^[a-z0-9._-]+\.(png|jpe?g|webp)$/i;
 
+/**
+ * Cada "kind" usa un prefijo de archivo distinto dentro de public/templates,
+ * para que las plantillas de cada módulo (menú del día, sugerencias…) no se
+ * mezclen aunque compartan carpeta.
+ */
+const PREFIX: Record<string, string> = {
+  menus: "menu-dia",
+  sugerencias: "sugerencia",
+};
+
+function prefixFor(kind: string | null): string {
+  return PREFIX[kind ?? "menus"] ?? PREFIX.menus;
+}
+
 interface TemplateInfo {
   name: string;
   file: string;
   src: string;
 }
 
-async function listFiles(): Promise<TemplateInfo[]> {
+async function listFiles(prefix: string): Promise<TemplateInfo[]> {
   try {
     const files = await fs.readdir(DIR);
     return files
-      .filter((f) => IMG_RE.test(f))
+      .filter((f) => IMG_RE.test(f) && f.toLowerCase().startsWith(prefix))
       .sort()
       .map((f) => ({ name: f.replace(IMG_RE, ""), file: f, src: `/api/templates/img/${f}` }));
   } catch {
@@ -27,22 +41,27 @@ async function listFiles(): Promise<TemplateInfo[]> {
   }
 }
 
-export async function GET() {
-  return NextResponse.json({ templates: await listFiles() });
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const prefix = prefixFor(searchParams.get("kind"));
+  return NextResponse.json({ templates: await listFiles(prefix) });
 }
 
-/** Siguiente índice: menu-dia.png => 0, menu-dia3.png => 3 … */
-function nextName(files: string[]): string {
+/** Siguiente índice: <prefix>.png => 0, <prefix>3.png => 3 … */
+function nextName(files: string[], prefix: string): string {
   let max = 0;
+  const re = new RegExp(`^${prefix}(\\d*)\\.(png|jpe?g|webp)$`, "i");
   for (const f of files) {
-    const m = /^menu-dia(\d*)\.(png|jpe?g|webp)$/i.exec(f);
+    const m = re.exec(f);
     if (m) max = Math.max(max, m[1] ? parseInt(m[1], 10) : 0);
   }
-  return `menu-dia${max + 1}.png`;
+  return `${prefix}${max + 1}.png`;
 }
 
 export async function POST(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const prefix = prefixFor(searchParams.get("kind"));
     const { dataUrl } = (await req.json()) as { dataUrl?: string };
     if (!dataUrl || !dataUrl.startsWith("data:image/")) {
       return NextResponse.json({ error: "Imagen inválida." }, { status: 400 });
@@ -55,7 +74,7 @@ export async function POST(req: Request) {
 
     await fs.mkdir(DIR, { recursive: true });
     const existing = (await fs.readdir(DIR).catch(() => [])) as string[];
-    const file = nextName(existing.filter((f) => IMG_RE.test(f)));
+    const file = nextName(existing.filter((f) => IMG_RE.test(f)), prefix);
     await fs.writeFile(path.join(DIR, file), buffer);
 
     return NextResponse.json({ name: file.replace(IMG_RE, ""), file, src: `/api/templates/img/${file}` });

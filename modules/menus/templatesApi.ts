@@ -6,7 +6,7 @@ export interface MenuTemplate {
 
 /** Lista las plantillas almacenadas en public/templates. */
 export async function listTemplates(): Promise<MenuTemplate[]> {
-  const res = await fetch("/api/templates", { cache: "no-store" });
+  const res = await fetch("/api/templates?kind=menus", { cache: "no-store" });
   if (!res.ok) return [];
   const data = (await res.json()) as { templates: MenuTemplate[] };
   return data.templates ?? [];
@@ -14,7 +14,7 @@ export async function listTemplates(): Promise<MenuTemplate[]> {
 
 /** Sube una plantilla (data URL) → la guarda como menu-diaN.png. */
 export async function uploadTemplate(dataUrl: string): Promise<MenuTemplate> {
-  const res = await fetch("/api/templates", {
+  const res = await fetch("/api/templates?kind=menus", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ dataUrl }),

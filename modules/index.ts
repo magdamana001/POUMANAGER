@@ -2,6 +2,7 @@ import type { ModuleDefinition } from "@/core/modules/types";
 import { timeTrackingModule } from "./time-tracking";
 import { scheduleModule } from "./schedule";
 import { menusModule } from "./menus";
+import { sugerenciasModule } from "./sugerencias";
 import { ordersModule } from "./orders";
 import { scannerModule } from "./scanner";
 import { invoiceScannerModule } from "./invoice-scanner";
@@ -20,6 +21,7 @@ export const modules: ModuleDefinition[] = [
   timeTrackingModule,
   scheduleModule,
   menusModule,
+  sugerenciasModule,
   ordersModule,
   scannerModule,
   invoiceScannerModule,
