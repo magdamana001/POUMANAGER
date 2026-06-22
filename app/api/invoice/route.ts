@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAiConfig } from "@/core/server/secrets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,14 +8,15 @@ export const maxDuration = 60;
 const UNITS = ["ud", "caja", "kg", "L", "botella", "barril", "paquete"];
 
 /**
- * Extrae las líneas de un albarán/factura usando Gemini Vision (plan gratuito).
+ * Extrae las líneas de un albarán/factura usando Gemini Vision.
+ * Clave y modelo desde la config cifrada en BD (Ajustes → IA) o env.
  * Body: { imageBase64: string (sin prefijo), mimeType: string }
  * Respuesta: { lines: [{name, qty, unit, price}], supplier?, date? }
  */
 export async function POST(req: Request) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const { geminiApiKey: apiKey, geminiModel } = await getAiConfig();
   if (!apiKey) {
-    return NextResponse.json({ error: "Falta GEMINI_API_KEY en el servidor." }, { status: 500 });
+    return NextResponse.json({ error: "Falta la API key de Gemini. Configúrala en Configuración → IA y API." }, { status: 500 });
   }
 
   let imageBase64: string;
@@ -57,7 +59,7 @@ Reglas:
   });
 
   const candidates = Array.from(
-    new Set([process.env.GEMINI_MODEL || "gemini-2.0-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"])
+    new Set([geminiModel || "gemini-2.0-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"])
   );
 
   try {

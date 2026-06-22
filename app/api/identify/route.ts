@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAiConfig } from "@/core/server/secrets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -6,17 +7,17 @@ export const dynamic = "force-dynamic";
 const UNITS = ["ud", "caja", "kg", "L", "botella", "barril", "paquete"];
 
 /**
- * Identifica un producto a partir de una imagen usando la API gratuita de
- * Gemini (Google AI Studio). La clave vive solo en el servidor.
+ * Identifica un producto a partir de una imagen usando Gemini. La clave y el
+ * modelo se leen de la config cifrada en BD (Ajustes → IA) con respaldo a env.
  *
  * Body: { imageBase64: string (sin prefijo data:), mimeType: string }
  * Respuesta: { name, unit, emoji, raw? }
  */
 export async function POST(req: Request) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const { geminiApiKey: apiKey, geminiModel } = await getAiConfig();
   if (!apiKey) {
     return NextResponse.json(
-      { error: "Falta GEMINI_API_KEY en el servidor." },
+      { error: "Falta la API key de Gemini. Configúrala en Configuración → IA y API." },
       { status: 500 }
     );
   }
@@ -57,7 +58,7 @@ Si no reconoces el producto, usa name "Producto sin identificar", unit "ud", emo
   // Prueba el modelo configurado y, si no existe (404), cae a otros válidos.
   const candidates = Array.from(
     new Set([
-      process.env.GEMINI_MODEL || "gemini-2.0-flash",
+      geminiModel || "gemini-2.0-flash",
       "gemini-2.0-flash",
       "gemini-2.5-flash",
       "gemini-1.5-flash",

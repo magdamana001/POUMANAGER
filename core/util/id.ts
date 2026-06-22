@@ -1,0 +1,4 @@
+/** Generador de identificadores simples y únicos, compartido por la app. */
+export function uid(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+}

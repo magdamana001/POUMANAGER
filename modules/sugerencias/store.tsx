@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { usePersistentState } from "@/core/db/usePersistentState";
+import { uid } from "@/core/util/id";
 
 export interface SavedDish {
   id: string;
@@ -15,10 +16,6 @@ interface DishesData {
 
 const STORAGE_KEY = "espou-sugerencias-dishes";
 const DEFAULTS: DishesData = { dishes: [] };
-
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
 
 function normalize(stored: DishesData | undefined): DishesData {
   if (!stored) return DEFAULTS;
@@ -36,7 +33,6 @@ interface StoreValue {
   dishes: SavedDish[];
   /** Guarda un plato; si ya existe uno con el mismo nombre, actualiza su precio. */
   saveDish: (name: string, price: string) => void;
-  updateDish: (id: string, patch: Partial<SavedDish>) => void;
   removeDish: (id: string) => void;
 }
 
@@ -62,8 +58,6 @@ export function SuggestionDishesProvider({ children }: { children: ReactNode }) 
           return { ...d, dishes: [...d.dishes, { id: uid(), name: trimmed, price }] };
         });
       },
-      updateDish: (id, patch) =>
-        mutate((d) => ({ ...d, dishes: d.dishes.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
       removeDish: (id) => mutate((d) => ({ ...d, dishes: d.dishes.filter((x) => x.id !== id) })),
     }),
     [ready, state, mutate]

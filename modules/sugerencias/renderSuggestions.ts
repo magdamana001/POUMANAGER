@@ -22,30 +22,7 @@ export interface RenderOptions {
   startY?: number;
 }
 
-/** Carga una imagen (mismo origen) lista para dibujar en canvas. */
-export function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("No se pudo cargar la plantilla"));
-    img.src = src;
-  });
-}
-
-/** Asegura que la fuente Cormorant Garamond esté disponible para canvas. */
-export async function ensureFonts(): Promise<void> {
-  try {
-    if (typeof document === "undefined" || !document.fonts) return;
-    await Promise.all([
-      document.fonts.load('600 32px "Cormorant Garamond"'),
-      document.fonts.load('italic 500 32px "Cormorant Garamond"'),
-    ]);
-    await document.fonts.ready;
-  } catch {
-    /* si falla, se usa la fuente serif por defecto */
-  }
-}
+export { loadImage, ensureFonts } from "@/core/util/canvas";
 
 /** Formatea un precio: numérico => "12.00€"; texto => tal cual (con € si falta). */
 export function formatPrice(raw: string): string {

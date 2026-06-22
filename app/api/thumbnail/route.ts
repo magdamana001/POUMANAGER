@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAiConfig } from "@/core/server/secrets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,9 +33,10 @@ export async function POST(req: Request) {
   }
 
   // 1) Describir el producto (solo para miniaturas con foto).
+  const ai = await getAiConfig();
   let subject = name;
   if (mode === "product" && imageBase64) {
-    const described = await describeProduct(imageBase64, mimeType);
+    const described = await describeProduct(imageBase64, mimeType, ai.geminiApiKey, ai.geminiModel);
     if (described) subject = described;
   }
   if (!subject) {
@@ -56,9 +58,9 @@ export async function POST(req: Request) {
   const errors: string[] = [];
 
   // 2a) NVIDIA SDXL (preferente si hay clave).
-  if (process.env.NVIDIA_API_KEY) {
+  if (ai.nvidiaApiKey) {
     try {
-      const image = await nvidiaSDXL(positive, negative, process.env.NVIDIA_API_KEY);
+      const image = await nvidiaSDXL(positive, negative, ai.nvidiaApiKey);
       return NextResponse.json({ image });
     } catch (e) {
       errors.push(e instanceof Error ? e.message : "NVIDIA error");
@@ -135,16 +137,17 @@ async function pollinations(prompt: string): Promise<string> {
  */
 async function describeProduct(
   imageBase64: string,
-  mimeType: string
+  mimeType: string,
+  apiKey: string,
+  model: string
 ): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return "";
-  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const useModel = model || "gemini-2.0-flash";
   const prompt =
     "Describe the main product in this image in ONE short English phrase suitable for an image generator (type, brand if visible, color, format/packaging). Reply with the phrase only, no quotes.";
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${useModel}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -42,6 +42,7 @@ interface AuthValue {
   setRole: (id: string, role: Role) => void;
   setEmployee: (id: string, employeeId: string | undefined) => void;
   changePassword: (id: string, password: string) => Promise<AuthResult>;
+  changeOwnPassword: (current: string, next: string) => Promise<AuthResult>;
   removeAccount: (id: string) => AuthResult;
 }
 
@@ -127,6 +128,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const salt = genSalt();
         const hash = await hashPassword(password, salt);
         mutate((d) => ({ ...d, accounts: d.accounts.map((a) => (a.id === id ? { ...a, salt, hash } : a)) }));
+        return { ok: true };
+      },
+
+      changeOwnPassword: async (current, next) => {
+        if (!currentUser) return { ok: false, error: "No has iniciado sesión." };
+        if (next.length < 4) return { ok: false, error: "La nueva contraseña debe tener al menos 4 caracteres." };
+        const currentHash = await hashPassword(current, currentUser.salt);
+        if (currentHash !== currentUser.hash) return { ok: false, error: "La contraseña actual no es correcta." };
+        const salt = genSalt();
+        const hash = await hashPassword(next, salt);
+        mutate((d) => ({ ...d, accounts: d.accounts.map((a) => (a.id === currentUser.id ? { ...a, salt, hash } : a)) }));
         return { ok: true };
       },
 

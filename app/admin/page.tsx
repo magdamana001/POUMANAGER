@@ -8,23 +8,41 @@ import { SettingsField } from "@/core/components/SettingsField";
 import { NotificationsSettings } from "@/core/notifications/NotificationsSettings";
 import { CronSettings } from "@/core/notifications/CronSettings";
 import { UsersSettings } from "@/core/auth/UsersSettings";
+import { ProfileSettings } from "@/core/auth/ProfileSettings";
+import { AiSettings } from "@/core/ai/AiSettings";
+import { useAuth } from "@/core/auth/store";
 
 const TABS = [
   { id: "general", label: "General", icon: "🏢" },
   { id: "notifications", label: "Notificaciones", icon: "🔔" },
   { id: "modules", label: "Módulos", icon: "🧩" },
+  { id: "ai", label: "IA y API", icon: "🤖" },
   { id: "users", label: "Usuarios", icon: "👤" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
 export default function AdminPage() {
-  const { config, updateGeneral, setModuleEnabled, updateModuleSettings, resetAll } = useConfig();
+  const { config, updateGeneral, setModuleEnabled, setModuleUserVisible, updateModuleSettings, resetAll } = useConfig();
+  const { isAdmin } = useAuth();
   const modules = getAllModules();
   const [tab, setTab] = useState<TabId>("general");
   const [moduleId, setModuleId] = useState<string>(() => modules[0]?.id ?? "");
 
   const selectedMod = modules.find((m) => m.id === moduleId) ?? modules[0];
+
+  // Vista de usuario normal: solo su cuenta y configuración personal.
+  if (!isAdmin) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        <header>
+          <h1 className="text-2xl font-bold tracking-tight">Mi configuración</h1>
+          <p className="text-neutral-500">Información de tu cuenta y ajustes personales.</p>
+        </header>
+        <ProfileSettings />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -92,6 +110,15 @@ export default function AdminPage() {
         </section>
       )}
 
+      {/* IA y API */}
+      {tab === "ai" && (
+        <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-lg font-semibold">IA y API</h2>
+          <p className="mb-4 text-sm text-neutral-500">Tus claves de IA y modelos. Se guardan cifrados en la base de datos.</p>
+          <AiSettings />
+        </section>
+      )}
+
       {/* Módulos */}
       {tab === "modules" && selectedMod && (
         <div className="flex flex-col gap-4 lg:flex-row">
@@ -155,6 +182,31 @@ export default function AdminPage() {
                     <p className="mt-4 rounded-xl bg-neutral-50 px-4 py-3 text-sm text-neutral-400">
                       Módulo desactivado. Actívalo para ver sus opciones y que aparezca en el menú.
                     </p>
+                  )}
+
+                  {state?.enabled && (
+                    <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">Visible para usuarios</p>
+                        <p className="text-xs text-neutral-500">
+                          Si se desactiva, solo los administradores verán este módulo.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setModuleUserVisible(mod.id, state?.userVisible === false)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
+                          state?.userVisible !== false ? "bg-brand" : "bg-neutral-300"
+                        }`}
+                        aria-pressed={state?.userVisible !== false}
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                            state?.userVisible !== false ? "translate-x-5" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
                   )}
 
                   {state?.enabled && mod.settings && mod.settings.fields.length > 0 && (

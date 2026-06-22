@@ -26,7 +26,7 @@ export const scannerModule: ModuleDefinition = {
   name: "Escáner IA",
   description: "Identifica productos con la cámara (Gemini) y los añade al catálogo.",
   icon: "📷",
-  order: 4,
+  order: 6,
   enabledByDefault: true,
   Page: ScannerPage,
   settings: {

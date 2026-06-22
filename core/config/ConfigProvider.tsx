@@ -19,6 +19,7 @@ interface ConfigContextValue {
   ready: boolean;
   updateGeneral: (patch: Partial<GeneralConfig>) => void;
   setModuleEnabled: (moduleId: string, enabled: boolean) => void;
+  setModuleUserVisible: (moduleId: string, visible: boolean) => void;
   updateModuleSettings: (moduleId: string, patch: Record<string, unknown>) => void;
   resetAll: () => void;
 }
@@ -31,6 +32,7 @@ function buildDefaultConfig(): AppConfig {
   for (const mod of getAllModules()) {
     modules[mod.id] = {
       enabled: mod.enabledByDefault ?? true,
+      userVisible: true,
       settings: getModuleDefaultSettings(mod),
     };
   }
@@ -50,6 +52,7 @@ function mergeConfig(stored: Partial<AppConfig> | null): AppConfig {
     if (storedMod) {
       merged.modules[id] = {
         enabled: storedMod.enabled ?? base.modules[id].enabled,
+        userVisible: storedMod.userVisible ?? base.modules[id].userVisible,
         settings: { ...base.modules[id].settings, ...(storedMod.settings ?? {}) },
       };
     }
@@ -81,6 +84,14 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
           modules: {
             ...c.modules,
             [moduleId]: { ...c.modules[moduleId], enabled },
+          },
+        })),
+      setModuleUserVisible: (moduleId, visible) =>
+        mutate((c) => ({
+          ...c,
+          modules: {
+            ...c.modules,
+            [moduleId]: { ...c.modules[moduleId], userVisible: visible },
           },
         })),
       updateModuleSettings: (moduleId, patch) =>

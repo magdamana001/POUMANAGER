@@ -26,7 +26,7 @@ export const sugerenciasModule: ModuleDefinition = {
   name: "Sugerencias",
   description: "Crea la hoja de sugerencias del fin de semana con platos y precios.",
   icon: "🍤",
-  order: 3,
+  order: 5,
   enabledByDefault: true,
   Page: SuggestionsPage,
   SettingsPanel: SuggestionsTemplatesSettings,

@@ -9,6 +9,7 @@ import {
 import type { Employee, TimeTrackingData, WorkSession } from "./types";
 import { nowHM, todayISO, uid } from "./utils";
 import { usePersistentState } from "@/core/db/usePersistentState";
+import { useAuth } from "@/core/auth/store";
 
 const STORAGE_KEY = "espou-tt-data";
 
@@ -40,6 +41,8 @@ function normalize(stored: TimeTrackingData | undefined): TimeTrackingData {
 
 interface StoreValue {
   ready: boolean;
+  /** true si el usuario actual es administrador (puede gestionar a todos). */
+  isAdmin: boolean;
   employees: Employee[];
   sessions: WorkSession[];
   addEmployee: (e: Omit<Employee, "id">) => void;
@@ -63,11 +66,25 @@ export function TimeTrackingProvider({ children }: { children: ReactNode }) {
     normalize
   );
 
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === "admin";
+  const ownEmployeeId = currentUser?.employeeId;
+
   const value = useMemo<StoreValue>(
-    () => ({
+    () => {
+      // Los usuarios normales solo se ven a sí mismos (su empleado vinculado).
+      const visibleEmployees = isAdmin
+        ? data.employees
+        : data.employees.filter((e) => e.id === ownEmployeeId);
+      const visibleSessions = isAdmin
+        ? data.sessions
+        : data.sessions.filter((s) => s.employeeId === ownEmployeeId);
+
+      return {
       ready,
-      employees: data.employees,
-      sessions: data.sessions,
+      isAdmin: Boolean(isAdmin),
+      employees: visibleEmployees,
+      sessions: visibleSessions,
       addEmployee: (e) =>
         mutate((d) => ({ ...d, employees: [...d.employees, { ...e, id: uid() }] })),
       updateEmployee: (id, patch) =>
@@ -108,8 +125,9 @@ export function TimeTrackingProvider({ children }: { children: ReactNode }) {
             s.id === sessionId && !s.end ? { ...s, end: nowHM() } : s
           ),
         })),
-    }),
-    [data, ready, mutate]
+      };
+    },
+    [data, ready, mutate, isAdmin, ownEmployeeId]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

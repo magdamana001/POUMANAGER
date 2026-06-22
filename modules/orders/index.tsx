@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ModuleDefinition } from "@/core/modules/types";
+import { useAuth } from "@/core/auth/store";
 import { OrdersProvider } from "./store";
 import { AgendaTab } from "./components/AgendaTab";
 import { OrdersTab } from "./components/OrdersTab";
@@ -18,7 +19,17 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 function OrdersPage() {
+  const { isAdmin } = useAuth();
   const [tab, setTab] = useState<TabId>("agenda");
+  const [composeSupplier, setComposeSupplier] = useState<string | null>(null);
+
+  // Los usuarios normales solo gestionan agenda y pedidos; el catálogo es del admin.
+  const tabs = isAdmin ? TABS : TABS.filter((t) => t.id === "agenda" || t.id === "orders");
+
+  const composeOrder = (supplierId: string) => {
+    setComposeSupplier(supplierId);
+    setTab("orders");
+  };
 
   return (
     <OrdersProvider>
@@ -26,12 +37,14 @@ function OrdersPage() {
         <header>
           <h1 className="text-2xl font-bold tracking-tight">Pedidos a proveedores</h1>
           <p className="text-neutral-500">
-            Agenda, catálogo con stock, pedidos con coste, envío y recepción.
+            {isAdmin
+              ? "Agenda, catálogo con stock, pedidos con coste, envío y recepción."
+              : "Consulta y realiza pedidos: cuando llegue el proveedor, muéstrale el pedido y envíalo."}
           </p>
         </header>
 
         <div className="inline-flex flex-wrap gap-1 rounded-2xl bg-neutral-100 p-1">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
@@ -47,10 +60,12 @@ function OrdersPage() {
           ))}
         </div>
 
-        {tab === "agenda" && <AgendaTab />}
-        {tab === "orders" && <OrdersTab />}
-        {tab === "products" && <ProductsTab />}
-        {tab === "suppliers" && <SuppliersTab />}
+        {tab === "agenda" && <AgendaTab onComposeOrder={composeOrder} />}
+        {tab === "orders" && (
+          <OrdersTab composeSupplier={composeSupplier} onComposeConsumed={() => setComposeSupplier(null)} />
+        )}
+        {tab === "products" && isAdmin && <ProductsTab />}
+        {tab === "suppliers" && isAdmin && <SuppliersTab />}
       </div>
     </OrdersProvider>
   );

@@ -24,9 +24,9 @@ export function LiveTab() {
   const [showManual, setShowManual] = useState(false);
 
   const openByEmployee = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof Object>>();
+    const map = new Map<string, WorkSession>();
     for (const s of sessions) if (isOpen(s)) map.set(s.employeeId, s);
-    return map as Map<string, (typeof sessions)[number]>;
+    return map;
   }, [sessions]);
 
   /** Horas de hoy del empleado (cerradas + jornada en curso). */

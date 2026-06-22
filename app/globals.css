@@ -6,9 +6,28 @@
   --brand-color: #e11d48;
 }
 
+html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+
 html,
 body {
-  height: 100%;
+  min-height: 100%;
+}
+
+body {
+  background-color: #f5f5f5; /* neutral-100 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Desplazamiento suave salvo que el usuario prefiera reducir movimiento. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 @media print {

@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useConfig } from "@/core/config/ConfigProvider";
+import { useAuth } from "@/core/auth/store";
 import { useOrders } from "../store";
 import { useStockControl } from "../hooks";
 import type { Order, OrderStatus } from "../types";
 import { printOrder } from "../print";
 import { renderOrderImage, downloadDataUrl } from "../orderImage";
+import { OrderPresent } from "./OrderPresent";
 import { SupplierAvatar, StatusPill, Stepper, inputCls } from "./ui";
 import {
   addDays,
@@ -23,25 +25,50 @@ import {
   whatsappUrl,
 } from "../utils";
 
-export function OrdersTab() {
+export function OrdersTab({
+  composeSupplier = null,
+  onComposeConsumed,
+}: {
+  composeSupplier?: string | null;
+  onComposeConsumed?: () => void;
+} = {}) {
   const { config } = useConfig();
   const currency = config.general.currency;
+  const { isAdmin } = useAuth();
   const { suppliers, products, orders, saveOrder, removeOrder, confirmReception } = useOrders();
   const stockOn = useStockControl();
   const [editing, setEditing] = useState<Order | null>(null);
   const [verifying, setVerifying] = useState<Order | null>(null);
+  const [presenting, setPresenting] = useState<Order | null>(null);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "todos">("todos");
   const [supplierFilter, setSupplierFilter] = useState("");
+  const [search, setSearch] = useState("");
 
   const supplier = (id: string) => suppliers.find((s) => s.id === id);
+
+  // "Hacer pedido" desde la Agenda: abre un nuevo pedido para ese proveedor.
+  useEffect(() => {
+    if (composeSupplier && suppliers.some((s) => s.id === composeSupplier)) {
+      setEditing({ id: uid(), supplierId: composeSupplier, createdAt: todayISO(), status: "borrador", lines: [], note: "" });
+      onComposeConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [composeSupplier]);
 
   const filtered = useMemo(
     () =>
       [...orders]
         .filter((o) => statusFilter === "todos" || o.status === statusFilter)
         .filter((o) => !supplierFilter || o.supplierId === supplierFilter)
+        .filter((o) => {
+          if (!search.trim()) return true;
+          const q = search.trim().toLowerCase();
+          const s = supplier(o.supplierId);
+          return (s?.name.toLowerCase().includes(q) ?? false) || formatRef(o.reference).toLowerCase().includes(q);
+        })
         .sort((a, b) => (b.reference ?? 0) - (a.reference ?? 0)),
-    [orders, statusFilter, supplierFilter]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orders, statusFilter, supplierFilter, search]
   );
 
   const filteredTotal = filtered.reduce((a, o) => a + orderTotal(o, products), 0);
@@ -74,7 +101,15 @@ export function OrdersTab() {
   };
 
   if (suppliers.length === 0) {
-    return <EmptyState>Primero crea proveedores y productos.</EmptyState>;
+    return (
+      <EmptyState>
+        {isAdmin ? "Primero crea proveedores y productos." : "Aún no hay proveedores. Pide al administrador que configure el catálogo."}
+      </EmptyState>
+    );
+  }
+
+  if (presenting) {
+    return <OrderPresent order={presenting} onClose={() => setPresenting(null)} />;
   }
 
   if (editing) {
@@ -110,6 +145,12 @@ export function OrdersTab() {
           <span className="text-lg leading-none">＋</span> Nuevo pedido
         </button>
         <div className="flex flex-wrap items-center gap-2">
+          <input
+            className={selectCls + " w-full sm:w-44"}
+            placeholder="🔍 Buscar nº o proveedor"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
           <select className={selectCls} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as OrderStatus | "todos")}>
             <option value="todos">Todos los estados</option>
             <option value="borrador">Borrador</option>
@@ -164,10 +205,11 @@ export function OrdersTab() {
 
                 {/* Acciones (scroll horizontal en móvil) */}
                 <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                  <ActionBtn primary onClick={() => setPresenting(o)}>👁 Mostrar al proveedor</ActionBtn>
                   {o.status === "borrador" && (
                     <>
                       <ActionBtn onClick={() => setEditing(o)}>✏️ Editar</ActionBtn>
-                      <ActionBtn primary onClick={() => markSent(o)}>📨 Enviar</ActionBtn>
+                      <ActionBtn success onClick={() => markSent(o)}>📨 Enviar</ActionBtn>
                     </>
                   )}
                   {o.status === "enviado" && (
@@ -176,10 +218,12 @@ export function OrdersTab() {
                   {o.status === "recibido" && (
                     <ActionBtn onClick={() => setVerifying(o)}>👁 Ver verificación</ActionBtn>
                   )}
-                  {s?.phone && <ActionBtn success onClick={() => sendWhatsApp(o)}>💬 WhatsApp</ActionBtn>}
+                  {s?.phone && <ActionBtn onClick={() => sendWhatsApp(o)}>💬 WhatsApp</ActionBtn>}
                   <ActionBtn onClick={() => downloadImage(o)}>⬇ Imagen</ActionBtn>
                   <ActionBtn onClick={() => s && printOrder(o, s, { businessName: config.general.businessName, products, currency })}>🖨 Imprimir</ActionBtn>
-                  <ActionBtn danger onClick={() => confirm("¿Eliminar pedido?") && removeOrder(o.id)}>🗑</ActionBtn>
+                  {isAdmin && (
+                    <ActionBtn danger onClick={() => confirm("¿Eliminar pedido?") && removeOrder(o.id)}>🗑</ActionBtn>
+                  )}
                 </div>
               </div>
             );

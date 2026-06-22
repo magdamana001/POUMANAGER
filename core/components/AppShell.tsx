@@ -18,7 +18,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { currentUser, logout } = useAuth();
 
-  const modules = getAllModules().filter((m) => config.modules[m.id]?.enabled);
+  const isAdmin = currentUser?.role === "admin";
+  const modules = getAllModules().filter((m) => {
+    const st = config.modules[m.id];
+    if (!st?.enabled) return false;
+    if (isAdmin) return true;
+    return st.userVisible !== false;
+  });
 
   const navItems = [
     { href: "/", icon: "🏠", name: "Inicio" },
@@ -27,18 +33,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <div className="flex min-h-screen bg-neutral-100 text-neutral-900">
+    <div className="flex min-h-dvh bg-neutral-100 text-neutral-900">
       {/* Overlay móvil */}
       {open && (
         <div
-          className="fixed inset-0 z-20 bg-black/40 md:hidden"
+          className="fixed inset-0 z-20 bg-black/40 backdrop-blur-[1px] md:hidden"
           onClick={() => setOpen(false)}
         />
       )}
 
       {/* Barra lateral */}
       <aside
-        className={`fixed z-30 flex h-full w-64 transform flex-col bg-white shadow-lg transition-transform md:static md:translate-x-0 ${
+        className={`fixed z-30 flex h-full w-64 max-w-[82%] transform flex-col bg-white shadow-lg transition-transform md:static md:max-w-none md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -102,15 +108,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Contenido */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-neutral-200 bg-white px-4 py-3 md:hidden">
+        <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-neutral-200 bg-white/90 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/70 md:hidden">
           <button
             onClick={() => setOpen(true)}
-            className="rounded-lg p-2 hover:bg-neutral-100"
+            className="rounded-lg p-2 text-xl leading-none hover:bg-neutral-100"
             aria-label="Abrir menú"
           >
             ☰
           </button>
-          <span className="font-semibold">{config.general.businessName}</span>
+          <span className="truncate font-semibold">{config.general.businessName}</span>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8">

@@ -18,6 +18,8 @@ export interface GeneralConfig {
 /** Estado de cada módulo: activado + valores de sus ajustes. */
 export interface ModuleConfigState {
   enabled: boolean;
+  /** Si los usuarios (rol "user") pueden ver/usar el módulo. Los admin siempre lo ven. */
+  userVisible?: boolean;
   settings: Record<string, unknown>;
 }
 

@@ -5,8 +5,10 @@ import { useConfig } from "@/core/config/ConfigProvider";
 import { drawSuggestions, ensureFonts, formatPrice, loadImage, measureContentHeight, type SuggestionItem } from "./renderSuggestions";
 import { listTemplates, type SuggestionTemplate } from "./templatesApi";
 import { useSuggestionDishes } from "./store";
+import { uid } from "@/core/util/id";
 
-const EMPTY: SuggestionItem = { name: "", price: "" };
+type Row = SuggestionItem & { _k: string };
+const newRow = (name = "", price = ""): Row => ({ _k: uid(), name, price });
 type Layout = "priced" | "centered";
 
 export function SuggestionsEditor() {
@@ -18,7 +20,7 @@ export function SuggestionsEditor() {
 
   const [templates, setTemplates] = useState<SuggestionTemplate[]>([]);
   const [selectedFile, setSelectedFile] = useState<string>("");
-  const [items, setItems] = useState<SuggestionItem[]>([{ ...EMPTY }, { ...EMPTY }, { ...EMPTY }]);
+  const [items, setItems] = useState<Row[]>([newRow(), newRow(), newRow()]);
   const [layout, setLayout] = useState<Layout>("priced");
   const [showCatalog, setShowCatalog] = useState(false);
   const [search, setSearch] = useState("");
@@ -134,7 +136,7 @@ export function SuggestionsEditor() {
   // Helpers de lista
   const setItem = (i: number, patch: Partial<SuggestionItem>) =>
     setItems((list) => list.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
-  const addItem = (it: SuggestionItem = { ...EMPTY }) => setItems((list) => [...list, it]);
+  const addItem = (it?: SuggestionItem) => setItems((list) => [...list, newRow(it?.name, it?.price)]);
   const removeItem = (i: number) => setItems((list) => list.filter((_, idx) => idx !== i));
   const move = (i: number, dir: -1 | 1) =>
     setItems((list) => {
@@ -239,7 +241,7 @@ export function SuggestionsEditor() {
 
             <div className="space-y-2">
               {items.map((it, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div key={it._k} className="flex items-center gap-2">
                   <div className="flex flex-col">
                     <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="px-1 text-xs text-neutral-400 hover:text-neutral-700 disabled:opacity-30">▲</button>
                     <button type="button" onClick={() => move(i, 1)} disabled={i === items.length - 1} className="px-1 text-xs text-neutral-400 hover:text-neutral-700 disabled:opacity-30">▼</button>

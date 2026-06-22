@@ -1,11 +1,12 @@
 import type { DayDetail, Employee, WeeklyResult, WorkSession } from "./types";
+import { addDays, formatHours, getWeekStart, toISODate, todayISO, WEEKDAYS_SHORT } from "@/core/util/datetime";
+import { uid } from "@/core/util/id";
+import { currencySymbol, formatMoney } from "@/core/util/format";
 
-export const DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+export { addDays, formatHours, getWeekStart, toISODate, todayISO, uid, currencySymbol, formatMoney };
 
-/** Genera un id simple y único. */
-export function uid(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
+/** Nombres cortos de los días (Lun…Dom). */
+export const DAY_NAMES = WEEKDAYS_SHORT;
 
 function hm(value: string): number | null {
   const [h, m] = value.split(":").map(Number);
@@ -58,32 +59,8 @@ export function liveMinutes(s: WorkSession): number {
   return minutes;
 }
 
-/** Devuelve el lunes (YYYY-MM-DD) de la semana que contiene la fecha dada. */
-export function getWeekStart(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  const day = (d.getDay() + 6) % 7; // 0 = lunes
-  d.setDate(d.getDate() - day);
-  return toISODate(d);
-}
-
-/** Fecha actual en formato YYYY-MM-DD (hora local). */
-export function todayISO(): string {
-  return toISODate(new Date());
-}
-
-export function toISODate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-/** Suma días a una fecha YYYY-MM-DD. */
-export function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return toISODate(d);
-}
+/** Devuelve el lunes (YYYY-MM-DD) de la semana que contiene la fecha dada. (compartida en core)
+ *  Se mantiene aquí solo la lógica específica del módulo. */
 
 /** Etiqueta legible del rango de la semana. */
 export function weekLabel(weekStart: string): string {
@@ -95,27 +72,9 @@ export function weekLabel(weekStart: string): string {
   return `${fmt(weekStart)} – ${fmt(end)}/${new Date(weekStart + "T00:00:00").getFullYear()}`;
 }
 
-/** Formatea horas decimales como "8h 30m". */
-export function formatHours(hours: number): string {
-  const total = Math.round(hours * 60);
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  if (h === 0 && m === 0) return "0h";
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
-}
-
 /** Formatea minutos como "1h 05m". */
 export function formatMinutes(min: number): string {
   return formatHours(min / 60);
-}
-
-/** Símbolo de la moneda configurada. */
-export function currencySymbol(currency: string): string {
-  return { EUR: "€", USD: "$", GBP: "£" }[currency] ?? currency;
-}
-
-export function formatMoney(amount: number, currency: string): string {
-  return `${amount.toFixed(2)} ${currencySymbol(currency)}`;
 }
 
 /** Calcula el resumen semanal de un empleado a partir de sus sesiones. */

@@ -11,8 +11,10 @@ import {
 import { usePersistentState } from "@/core/db/usePersistentState";
 import { disablePush as doDisablePush, enablePush as doEnablePush, isFirefoxDesktop, isPushSubscribed, pushSupported } from "./push";
 import { categoryIcon, DEFAULT_CATEGORY, type ReminderPreset } from "./categories";
+import { WEEKDAYS_SHORT as WEEKDAYS_SHARED, todayISO } from "@/core/util/datetime";
+import { uid } from "@/core/util/id";
 
-export const WEEKDAYS_SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+export const WEEKDAYS_SHORT = WEEKDAYS_SHARED;
 
 export interface Reminder {
   id: string;
@@ -39,17 +41,6 @@ const FIRED_KEY = "espou-notif-fired";
 const POLL_MS = 30000;
 /** Ventana (min) tras la hora del recordatorio para avisar (evita avisos tardíos). */
 const WINDOW_MIN = 90;
-
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
-function pad(n: number) {
-  return String(n).padStart(2, "0");
-}
-function todayISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 const DEFAULTS: NotifData = {
   enabled: false,

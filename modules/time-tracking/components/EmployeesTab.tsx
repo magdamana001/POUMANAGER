@@ -29,7 +29,7 @@ interface EmpForm {
 }
 
 export function EmployeesTab() {
-  const { employees, addEmployee, updateEmployee, removeEmployee } = useTimeTracking();
+  const { employees, addEmployee, updateEmployee, removeEmployee, isAdmin } = useTimeTracking();
   const { config } = useConfig();
   const currency = config.general.currency;
   const defaultContract = (config.modules["time-tracking"]?.settings?.defaultContractHours as number) ?? 40;
@@ -102,8 +102,9 @@ export function EmployeesTab() {
   const input = "w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand focus:outline-none";
 
   return (
-    <div className="grid gap-6 lg:grid-cols-5">
-      {/* Ficha */}
+    <div className={`grid gap-6 ${isAdmin ? "lg:grid-cols-5" : "lg:grid-cols-1"}`}>
+      {/* Ficha (solo administradores) */}
+      {isAdmin && (
       <div className="lg:col-span-2">
         <div className={`rounded-2xl border bg-white p-5 shadow-sm ${editingId ? "border-brand/40" : "border-neutral-200"}`}>
           <h2 className="mb-4 font-semibold">{editingId ? "Editar empleado" : "Nuevo empleado"}</h2>
@@ -204,9 +205,10 @@ export function EmployeesTab() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Listado */}
-      <div className="lg:col-span-3">
+      <div className={isAdmin ? "lg:col-span-3" : ""}>
         <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="font-semibold">Empleados ({employees.length})</h2>
@@ -230,9 +232,15 @@ export function EmployeesTab() {
                     </p>
                   </div>
                   <div className="flex w-full justify-end gap-1 sm:w-auto">
-                    <button onClick={() => updateEmployee(e.id, { active: !e.active })} className="rounded-lg px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-200">{e.active ? "Desactivar" : "Activar"}</button>
-                    <button onClick={() => startEdit(e)} className="rounded-lg px-2 py-1 text-sm text-neutral-600 hover:bg-neutral-200">Editar</button>
-                    <button onClick={() => { if (confirm(`¿Eliminar a ${e.name}? Se borran también sus jornadas.`)) removeEmployee(e.id); }} className="rounded-lg px-2 py-1 text-sm text-red-500 hover:bg-red-50">Eliminar</button>
+                    {isAdmin ? (
+                      <>
+                        <button onClick={() => updateEmployee(e.id, { active: !e.active })} className="rounded-lg px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-200">{e.active ? "Desactivar" : "Activar"}</button>
+                        <button onClick={() => startEdit(e)} className="rounded-lg px-2 py-1 text-sm text-neutral-600 hover:bg-neutral-200">Editar</button>
+                        <button onClick={() => { if (confirm(`¿Eliminar a ${e.name}? Se borran también sus jornadas.`)) removeEmployee(e.id); }} className="rounded-lg px-2 py-1 text-sm text-red-500 hover:bg-red-50">Eliminar</button>
+                      </>
+                    ) : (
+                      <span className="rounded-lg bg-neutral-100 px-2 py-1 text-xs text-neutral-400">Tu ficha</span>
+                    )}
                   </div>
                 </li>
               ))}

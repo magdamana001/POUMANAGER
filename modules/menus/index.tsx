@@ -23,7 +23,7 @@ export const menusModule: ModuleDefinition = {
   name: "Menús del día",
   description: "Crea el menú diario sobre tu plantilla y descárgalo como imagen.",
   icon: "🍽️",
-  order: 2,
+  order: 4,
   enabledByDefault: true,
   Page: MenusPage,
   SettingsPanel: MenuTemplatesSettings,

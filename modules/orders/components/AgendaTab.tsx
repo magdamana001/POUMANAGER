@@ -21,7 +21,7 @@ import {
   WEEKDAYS_SHORT,
 } from "../utils";
 
-export function AgendaTab() {
+export function AgendaTab({ onComposeOrder }: { onComposeOrder?: (supplierId: string) => void } = {}) {
   const { config } = useConfig();
   const currency = config.general.currency;
   const { suppliers, products, orders } = useOrders();
@@ -49,6 +49,36 @@ export function AgendaTab() {
 
   return (
     <div className="space-y-6">
+      {/* Vienen hoy: acceso rápido a realizar el pedido cuando llega el proveedor */}
+      {todaySuppliers.length > 0 && (
+        <section className="rounded-2xl border border-brand/30 bg-brand-soft p-5 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="text-lg">🛎️</span>
+            <h2 className="font-semibold">Vienen hoy ({todaySuppliers.length})</h2>
+            <span className="text-xs text-neutral-500">Cuando llegue el proveedor, realiza o muéstrale el pedido</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {todaySuppliers.map((s) => (
+              <div key={s.id} className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white p-2 pr-1 shadow-sm">
+                <SupplierAvatar name={s.name} color={s.color} logo={s.logo} size={32} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium leading-tight">{s.name}</p>
+                  {s.phone && <p className="truncate text-[11px] text-neutral-400">{s.phone}</p>}
+                </div>
+                {onComposeOrder && (
+                  <button
+                    onClick={() => onComposeOrder(s.id)}
+                    className="ml-1 shrink-0 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 active:scale-[0.98]"
+                  >
+                    ＋ Hacer pedido
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi icon="🚚" label="Proveedores hoy" value={String(todaySuppliers.length)} hint={WEEKDAYS[today]} />

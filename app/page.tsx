@@ -3,10 +3,18 @@
 import Link from "next/link";
 import { useConfig } from "@/core/config/ConfigProvider";
 import { getAllModules } from "@/core/modules/registry";
+import { useAuth } from "@/core/auth/store";
 
 export default function DashboardPage() {
   const { config } = useConfig();
-  const modules = getAllModules().filter((m) => config.modules[m.id]?.enabled);
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === "admin";
+  const modules = getAllModules().filter((m) => {
+    const st = config.modules[m.id];
+    if (!st?.enabled) return false;
+    if (isAdmin) return true;
+    return st.userVisible !== false;
+  });
 
   return (
     <div className="space-y-6">

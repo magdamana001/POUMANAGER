@@ -20,6 +20,8 @@ interface StoreValue {
   removeShift: (id: string) => void;
   /** Añade varios turnos a la vez (p. ej. copiar semana). */
   addShifts: (list: Omit<Shift, "id">[]) => void;
+  /** Elimina varios turnos por id (p. ej. limpiar semana). */
+  removeShifts: (ids: string[]) => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -37,6 +39,10 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       removeShift: (id) => mutate((d) => ({ shifts: d.shifts.filter((x) => x.id !== id) })),
       addShifts: (list) =>
         mutate((d) => ({ shifts: [...d.shifts, ...list.map((s) => ({ ...s, id: uid() }))] })),
+      removeShifts: (ids) => {
+        const set = new Set(ids);
+        mutate((d) => ({ shifts: d.shifts.filter((x) => !set.has(x.id)) }));
+      },
     }),
     [data, ready, mutate]
   );

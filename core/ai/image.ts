@@ -1,23 +1,8 @@
-/** Utilidades de imagen en el navegador (canvas). Reutilizables por módulos. */
+/** Utilidades de imagen para IA (canvas). Reutiliza las utilidades base de core/util/canvas. */
 
-/** Lee un archivo de imagen como data URL. */
-export function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error("No se pudo leer la imagen"));
-    reader.readAsDataURL(file);
-  });
-}
+import { fileToDataUrl, loadImage } from "@/core/util/canvas";
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Imagen no válida"));
-    img.src = src;
-  });
-}
+export { fileToDataUrl };
 
 /** Crea un icono cuadrado (recorte centrado) JPEG ligero. */
 export async function makeSquareIcon(dataUrl: string, size = 128): Promise<string> {

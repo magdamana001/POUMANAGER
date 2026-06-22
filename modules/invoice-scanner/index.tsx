@@ -27,7 +27,7 @@ export const invoiceScannerModule: ModuleDefinition = {
   name: "Escáner albaranes",
   description: "Escanea albaranes con IA y añade productos al catálogo con precio y stock.",
   icon: "🧾",
-  order: 5,
+  order: 7,
   enabledByDefault: true,
   Page: InvoiceScannerPage,
   settings: {

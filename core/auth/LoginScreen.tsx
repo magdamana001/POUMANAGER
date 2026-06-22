@@ -31,7 +31,7 @@ export function LoginScreen() {
     "w-full rounded-xl border border-neutral-300 px-4 py-3 text-sm focus:border-brand focus:outline-none";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-100 p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-neutral-100 p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           {config.general.logoUrl ? (

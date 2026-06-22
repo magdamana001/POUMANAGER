@@ -1,3 +1,10 @@
+import type { Order, Product, Supplier } from "./types";
+import { addDays, toISODate, todayISO, WEEKDAYS_SHORT } from "@/core/util/datetime";
+import { uid } from "@/core/util/id";
+import { currencySymbol, formatMoney } from "@/core/util/format";
+
+export { addDays, toISODate, todayISO, uid, currencySymbol, formatMoney, WEEKDAYS_SHORT };
+
 export const WEEKDAYS = [
   "Lunes",
   "Martes",
@@ -7,28 +14,6 @@ export const WEEKDAYS = [
   "Sábado",
   "Domingo",
 ];
-export const WEEKDAYS_SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-
-export function uid(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
-
-export function toISODate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-export function todayISO(): string {
-  return toISODate(new Date());
-}
-
-export function addDays(iso: string, n: number): string {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + n);
-  return toISODate(d);
-}
 
 /** Índice de día de semana (0=Lun … 6=Dom) de una fecha ISO. */
 export function weekdayIndex(iso: string): number {
@@ -50,16 +35,6 @@ export function formatDate(iso: string): string {
   if (!iso) return "—";
   const d = new Date(iso + "T00:00:00");
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
-}
-
-import type { Order, Product, Supplier } from "./types";
-
-export function currencySymbol(currency: string): string {
-  return { EUR: "€", USD: "$", GBP: "£" }[currency] ?? currency;
-}
-
-export function formatMoney(amount: number, currency: string): string {
-  return `${(amount ?? 0).toFixed(2)} ${currencySymbol(currency)}`;
 }
 
 /** Subtotal de una línea (cantidad × precio del producto). */

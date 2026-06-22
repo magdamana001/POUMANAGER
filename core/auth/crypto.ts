@@ -1,5 +1,7 @@
 /** Utilidades de hash de contraseñas (Web Crypto, SHA-256 + sal por cuenta). */
 
+export { uid } from "@/core/util/id";
+
 function toHex(buf: ArrayBuffer | Uint8Array): string {
   const arr = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
   return Array.from(arr)
@@ -19,8 +21,4 @@ export async function hashPassword(password: string, salt: string): Promise<stri
   const data = new TextEncoder().encode(`${salt}:${password}`);
   const buf = await crypto.subtle.digest("SHA-256", data);
   return toHex(buf);
-}
-
-export function uid(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
